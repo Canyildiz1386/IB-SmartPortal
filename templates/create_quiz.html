@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Create Quiz{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Create Quiz</h1>
+    
+    <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700">
+        <form method="POST" class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Quiz Title</label>
+                <input type="text" name="title" required placeholder="Enter quiz title..."
+                       class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Subject</label>
+                <select name="subject_id" required class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">Select a subject...</option>
+                    {% for subject in subjects %}
+                        <option value="{{ subject.id }}">{{ subject.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Quiz Description</label>
+                <textarea name="description" required placeholder="Describe what this quiz should cover (e.g., 'Create questions about photosynthesis, cell structure, and energy flow')"
+                          class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-24 resize-none"></textarea>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Number of Questions</label>
+                <select name="num_questions" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="3">3 questions</option>
+                    <option value="5" selected>5 questions</option>
+                    <option value="10">10 questions</option>
+                </select>
+            </div>
+            
+            <button type="submit" id="createBtn" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 px-4 rounded-lg font-medium transition-all transform hover:scale-105">
+                Create Quiz
+            </button>
+        </form>
+        
+        <div id="quizLoading" class="hidden text-center py-8">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+            <p class="text-gray-400 mt-4 text-lg">Generating quiz questions...</p>
+            <p class="text-gray-500 mt-2 text-sm">AI is creating questions based on your materials and description</p>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelector('form').addEventListener('submit', function() {
+    const btn = document.getElementById('createBtn');
+    const loading = document.getElementById('quizLoading');
+    
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+    loading.classList.remove('hidden');
+});
+</script>
+{% endblock %}

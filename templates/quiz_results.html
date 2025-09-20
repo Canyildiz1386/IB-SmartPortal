@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz Results{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Quiz Results</h1>
+    
+    <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700 mb-6">
+        <h2 class="text-2xl font-semibold mb-6 text-white">{{ quiz.title }}</h2>
+        
+        <div class="text-center">
+            <div class="text-6xl font-bold mb-4 {% if percentage >= 80 %}text-green-400{% elif percentage >= 60 %}text-yellow-400{% else %}text-red-400{% endif %}">
+                {{ percentage }}%
+            </div>
+            <div class="text-2xl text-gray-300 mb-6">{{ score }}/{{ total }} correct</div>
+            
+            {% if percentage >= 80 %}
+                <div class="bg-green-600/20 border border-green-500/30 rounded-lg p-4">
+                    <p class="text-green-400 text-lg font-medium">Excellent work! 🎉</p>
+                </div>
+            {% elif percentage >= 60 %}
+                <div class="bg-yellow-600/20 border border-yellow-500/30 rounded-lg p-4">
+                    <p class="text-yellow-400 text-lg font-medium">Good job! Keep studying! 📚</p>
+                </div>
+            {% else %}
+                <div class="bg-red-600/20 border border-red-500/30 rounded-lg p-4">
+                    <p class="text-red-400 text-lg font-medium">Keep studying! You can do better! 💪</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="text-center">
+        <a href="{{ url_for('student_quizzes') }}" class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-3 rounded-lg font-medium transition-all transform hover:scale-105">
+            Back to My Quizzes
+        </a>
+    </div>
+</div>
+{% endblock %}

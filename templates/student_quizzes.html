@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}My Quizzes{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">My Quizzes</h1>
+    
+    {% if quizzes %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for quiz in quizzes %}
+                <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all">
+                    <h3 class="text-xl font-semibold mb-2 text-white">{{ quiz.title }}</h3>
+                    <p class="text-gray-400 mb-4">{{ quiz.subject_name }}</p>
+                    <p class="text-sm text-gray-500 mb-4">Assigned: {{ quiz.assigned_time }}</p>
+                    
+                    {% if quiz.completed_time %}
+                        <div class="mb-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm text-gray-300">Score:</span>
+                                <span class="text-lg font-bold {% if quiz.score >= 80 %}text-green-400{% elif quiz.score >= 60 %}text-yellow-400{% else %}text-red-400{% endif %}">
+                                    {{ quiz.score }}%
+                                </span>
+                            </div>
+                            <p class="text-xs text-gray-500">Completed: {{ quiz.completed_time }}</p>
+                        </div>
+                        <div class="bg-gray-700/50 rounded-lg p-3 text-center">
+                            <span class="text-gray-400 text-sm">Completed</span>
+                        </div>
+                    {% else %}
+                        <a href="{{ url_for('take_quiz', quiz_id=quiz.id) }}" 
+                           class="block w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-3 rounded-lg text-center font-medium transition-all transform hover:scale-105">
+                            Take Quiz
+                        </a>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-12 border border-gray-700 text-center">
+            <h3 class="text-xl font-semibold mb-4 text-gray-300">No quizzes assigned</h3>
+            <p class="text-gray-400">Your teachers haven't assigned any quizzes yet.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

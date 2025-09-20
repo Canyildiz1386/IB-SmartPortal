@@ -1,5 +1,7 @@
+Flask
 cohere
-gradio
-numpy
-scikit-learn
+rank-bm25
 pypdf
+scikit-learn
+numpy
+werkzeug

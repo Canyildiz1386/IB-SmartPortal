@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Dashboard</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-blue-100 text-sm">Total Users</p>
+                    <p class="text-3xl font-bold">{{ stats.total_users }}</p>
+                </div>
+                <div class="text-4xl opacity-80">👥</div>
+            </div>
+        </div>
+        
+        <div class="bg-gradient-to-r from-green-600 to-green-700 rounded-xl p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-green-100 text-sm">Total Quizzes</p>
+                    <p class="text-3xl font-bold">{{ stats.total_quizzes }}</p>
+                </div>
+                <div class="text-4xl opacity-80">📝</div>
+            </div>
+        </div>
+        
+        <div class="bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-purple-100 text-sm">Materials</p>
+                    <p class="text-3xl font-bold">{{ stats.total_materials }}</p>
+                </div>
+                <div class="text-4xl opacity-80">📚</div>
+            </div>
+        </div>
+        
+        <div class="bg-gradient-to-r from-orange-600 to-orange-700 rounded-xl p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-orange-100 text-sm">Quiz Attempts</p>
+                    <p class="text-3xl font-bold">{{ stats.total_attempts }}</p>
+                </div>
+                <div class="text-4xl opacity-80">🎯</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+            <h3 class="text-xl font-semibold mb-4 text-white">User Distribution</h3>
+            <canvas id="userChart" width="400" height="200"></canvas>
+        </div>
+        
+        <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+            <h3 class="text-xl font-semibold mb-4 text-white">Quiz Performance</h3>
+            <canvas id="performanceChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+            <h3 class="text-xl font-semibold mb-4 text-white">Subject Activity</h3>
+            <canvas id="subjectChart" width="400" height="200"></canvas>
+        </div>
+        
+        <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+            <h3 class="text-xl font-semibold mb-4 text-white">Quiz Attempts Over Time</h3>
+            <canvas id="timeChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+            <h3 class="text-xl font-semibold mb-4 text-white">Score Distribution</h3>
+            <canvas id="scoreChart" width="400" height="200"></canvas>
+        </div>
+        
+        <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+            <h3 class="text-xl font-semibold mb-4 text-white">Recent Activity</h3>
+            <div class="space-y-3 max-h-64 overflow-y-auto">
+                {% for activity in recent_activities %}
+                    <div class="bg-gray-700/50 rounded-lg p-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-white text-sm">{{ activity.description }}</span>
+                            <span class="text-gray-400 text-xs">{{ activity.time }}</span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    {% if session.role == 'admin' %}
+    <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+        <h3 class="text-xl font-semibold mb-4 text-white">System Overview</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="text-center">
+                <div class="text-2xl font-bold text-blue-400">{{ stats.avg_quiz_score }}%</div>
+                <div class="text-gray-400 text-sm">Average Quiz Score</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold text-green-400">{{ stats.active_students }}</div>
+                <div class="text-gray-400 text-sm">Active Students</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold text-purple-400">{{ stats.teachers_count }}</div>
+                <div class="text-gray-400 text-sm">Teachers</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const userData = {{ user_distribution | tojson }};
+const performanceData = {{ performance_data | tojson }};
+const subjectData = {{ subject_activity | tojson }};
+const timeData = {{ time_series_data | tojson }};
+const scoreData = {{ score_distribution | tojson }};
+
+const userCtx = document.getElementById('userChart').getContext('2d');
+new Chart(userCtx, {
+    type: 'doughnut',
+    data: {
+        labels: userData.labels,
+        datasets: [{
+            data: userData.values,
+            backgroundColor: ['#3B82F6', '#10B981', '#8B5CF6'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                labels: {
+                    color: '#D1D5DB'
+                }
+            }
+        }
+    }
+});
+
+const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+new Chart(performanceCtx, {
+    type: 'bar',
+    data: {
+        labels: performanceData.labels,
+        datasets: [{
+            label: 'Average Score',
+            data: performanceData.values,
+            backgroundColor: '#10B981',
+            borderColor: '#059669',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100,
+                ticks: {
+                    color: '#D1D5DB'
+                },
+                grid: {
+                    color: '#374151'
+                }
+            },
+            x: {
+                ticks: {
+                    color: '#D1D5DB'
+                },
+                grid: {
+                    color: '#374151'
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                labels: {
+                    color: '#D1D5DB'
+                }
+            }
+        }
+    }
+});
+
+const subjectCtx = document.getElementById('subjectChart').getContext('2d');
+new Chart(subjectCtx, {
+    type: 'polarArea',
+    data: {
+        labels: subjectData.labels,
+        datasets: [{
+            data: subjectData.values,
+            backgroundColor: [
+                '#3B82F6', '#10B981', '#F59E0B', '#EF4444', 
+                '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'
+            ],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                labels: {
+                    color: '#D1D5DB'
+                }
+            }
+        }
+    }
+});
+
+const timeCtx = document.getElementById('timeChart').getContext('2d');
+new Chart(timeCtx, {
+    type: 'line',
+    data: {
+        labels: timeData.labels,
+        datasets: [{
+            label: 'Quiz Attempts',
+            data: timeData.values,
+            borderColor: '#3B82F6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    color: '#D1D5DB'
+                },
+                grid: {
+                    color: '#374151'
+                }
+            },
+            x: {
+                ticks: {
+                    color: '#D1D5DB'
+                },
+                grid: {
+                    color: '#374151'
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                labels: {
+                    color: '#D1D5DB'
+                }
+            }
+        }
+    }
+});
+
+const scoreCtx = document.getElementById('scoreChart').getContext('2d');
+new Chart(scoreCtx, {
+    type: 'bar',
+    data: {
+        labels: scoreData.labels,
+        datasets: [{
+            label: 'Number of Attempts',
+            data: scoreData.values,
+            backgroundColor: [
+                '#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6'
+            ],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    color: '#D1D5DB'
+                },
+                grid: {
+                    color: '#374151'
+                }
+            },
+            x: {
+                ticks: {
+                    color: '#D1D5DB'
+                },
+                grid: {
+                    color: '#374151'
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                labels: {
+                    color: '#D1D5DB'
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

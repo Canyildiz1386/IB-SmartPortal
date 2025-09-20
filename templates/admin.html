@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Admin Panel</h1>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+            <h2 class="text-xl font-semibold mb-6 text-white">Add User</h2>
+            
+            <form method="POST" action="{{ url_for('admin') }}" class="space-y-4">
+                <div>
+                    <input type="text" name="username" required placeholder="Username"
+                           class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div>
+                    <input type="password" name="password" required placeholder="Password"
+                           class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div>
+                    <select name="role" id="roleSelect" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="student">Student</option>
+                        <option value="teacher">Teacher</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                
+                <div id="subjectsSection" class="hidden">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Assign Subjects</label>
+                    <div class="max-h-40 overflow-y-auto space-y-2">
+                        {% for subject in all_subjects %}
+                            <label class="flex items-center">
+                                <input type="checkbox" name="subject_ids" value="{{ subject.id }}" class="mr-2 text-blue-600 focus:ring-blue-500">
+                                <span class="text-gray-300 text-sm">{{ subject.name }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <button type="submit" class="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-3 px-4 rounded-lg font-medium transition-all transform hover:scale-105">
+                    Add User
+                </button>
+            </form>
+        </div>
+        
+        <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+            <h2 class="text-xl font-semibold mb-6 text-white">Users</h2>
+            
+            <div class="space-y-3 max-h-96 overflow-y-auto">
+                {% for user in users %}
+                    <div class="bg-gray-700/50 rounded-lg p-4 flex justify-between items-center">
+                        <div>
+                            <span class="text-white font-medium">{{ user.username }}</span>
+                            <span class="text-gray-400 text-sm ml-2">({{ user.role }})</span>
+                        </div>
+                        {% if user.id != session.user_id %}
+                            <a href="{{ url_for('delete_user_route', user_id=user.id) }}" 
+                               class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                               onclick="return confirm('Delete user {{ user.username }}?')">
+                                Delete
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('roleSelect').addEventListener('change', function() {
+    const subjectsSection = document.getElementById('subjectsSection');
+    if (this.value === 'student' || this.value === 'teacher') {
+        subjectsSection.classList.remove('hidden');
+    } else {
+        subjectsSection.classList.add('hidden');
+    }
+});
+</script>
+{% endblock %}

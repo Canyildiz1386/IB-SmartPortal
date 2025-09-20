@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Upload{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6 text-blue-400">Upload Materials</h1>
+    
+    <div class="bg-gray-800 rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4 text-white">Upload Files</h2>
+        
+        <form method="POST" enctype="multipart/form-data" class="space-y-4" id="uploadForm">
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Select Subject</label>
+                <select name="subject_id" required class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Choose a subject...</option>
+                    {% for subject in subjects %}
+                        <option value="{{ subject.id }}">{{ subject.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <input type="file" name="files" multiple accept=".pdf,.txt" required
+                       class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:bg-blue-600 file:text-white hover:file:bg-blue-700">
+                <p class="text-sm text-gray-400 mt-1">PDF or TXT files (max 10MB each)</p>
+            </div>
+            
+            <button type="submit" id="uploadBtn" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded">
+                Upload & Index
+            </button>
+        </form>
+        
+        <div id="uploadLoading" class="hidden text-center py-8">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-400"></div>
+            <p class="text-gray-400 mt-4 text-lg">Processing files...</p>
+            <p class="text-gray-500 mt-2 text-sm">This may take a few moments while we analyze your content</p>
+        </div>
+    </div>
+    
+    <div class="bg-gray-800 rounded-lg p-6">
+        <h2 class="text-lg font-semibold mb-4 text-white">Uploaded Files</h2>
+        
+        {% if materials %}
+            <div class="space-y-2">
+                {% for material in materials %}
+                    <div class="bg-gray-700 rounded p-3 flex justify-between items-center">
+                        <div>
+                            <h3 class="text-white font-medium">{{ material.filename }}</h3>
+                            <p class="text-gray-400 text-sm">{{ material.upload_time }}</p>
+                        </div>
+                        <div class="text-green-400 text-sm">✓</div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-6">
+                <p class="text-gray-400">No files uploaded yet.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.getElementById('uploadForm').addEventListener('submit', function() {
+    document.getElementById('uploadBtn').disabled = true;
+    document.getElementById('uploadBtn').textContent = 'Processing...';
+    document.getElementById('uploadLoading').classList.remove('hidden');
+});
+</script>
+{% endblock %}

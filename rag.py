@@ -1,134 +1,326 @@
 import os
-import io
-import re
-import pickle
-from dataclasses import dataclass, field
-from typing import List, Tuple, Dict, Any, Optional
+import time
 import numpy as np
-import cohere
+from rank_bm25 import BM25Okapi
 from sklearn.neighbors import NearestNeighbors
-from pypdf import PdfReader
+import cohere
 
-def _normalize_whitespace(s: str) -> str:
-    return re.sub(r"\s+", " ", s).strip()
+class SmartStudyRAG:
+    def __init__(self, api_key):
+        self.client = cohere.Client(api_key)
+        self.chunks = []
+        self.meta = []
+        self.bm25 = None
+        self.nn = None
+        self.embeddings = None
+        self.alpha = 0.7
+        self.last_time = 0
+        self.delay = 2.0
 
-def chunk_text(text: str, max_chars: int = 800, overlap: int = 120) -> List[str]:
-    text = _normalize_whitespace(text)
-    chunks, i, n = [], 0, len(text)
-    while i < n:
-        j = min(i + max_chars, n)
-        chunks.append(text[i:j])
-        i = j - overlap if j - overlap > i else j
-    return chunks
+    def chunk_text(self, text, chunk_size=500, overlap=50, subject_id=None):
+        words = text.split()
+        chunks = []
+        for i in range(0, len(words), chunk_size - overlap):
+            chunk = ' '.join(words[i:i + chunk_size])
+            if chunk.strip():
+                chunks.append(chunk.strip())
+        return chunks
 
-def read_any(file_bytes: bytes, filename: str) -> str:
-    fn = filename.lower()
-    if fn.endswith((".txt", ".md")):
-        return file_bytes.decode("utf-8", errors="ignore")
-    if fn.endswith(".pdf"):
-        reader = PdfReader(io.BytesIO(file_bytes))
-        return "\n".join([p.extract_text() or "" for p in reader.pages])
-    return file_bytes.decode("utf-8", errors="ignore")
+    def extract_pdf(self, path):
+        try:
+            import pypdf
+            with open(path, 'rb') as file:
+                reader = pypdf.PdfReader(file)
+                text = ""
+                for page in reader.pages:
+                    text += page.extract_text() + "\n"
+                return text
+        except:
+            return ""
 
-@dataclass
-class RagIndex:
-    model_embed: str = "embed-multilingual-v3.0"
-    model_generate: str = "command-a-03-2025"
-    top_k: int = 5
-    chunk_chars: int = 800
-    chunk_overlap: int = 120
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    def extract_txt(self, path):
+        try:
+            with open(path, 'r', encoding='utf-8') as file:
+                return file.read()
+        except:
+            return ""
 
-    chunks: List[str] = field(default_factory=list)
-    sources: List[Tuple[str, int]] = field(default_factory=list)
-    vectors: Optional[np.ndarray] = None
-    nn: Optional[NearestNeighbors] = None
+    def rate_limit(self):
+        current_time = time.time()
+        time_diff = current_time - self.last_time
+        if time_diff < self.delay:
+            time.sleep(self.delay - time_diff)
+        self.last_time = time.time()
 
-    def _client(self):
-        api_key = os.getenv("COHERE_API_KEY")
-        if not api_key:
-            raise RuntimeError("COHERE_API_KEY not set.")
-        return cohere.Client(api_key)
-
-    def add_document(self, file_bytes: bytes, filename: str):
-        text = read_any(file_bytes, filename)
-        if not text.strip():
-            return
-        doc_chunks = chunk_text(text, self.chunk_chars, self.chunk_overlap)
-        self.chunks.extend(doc_chunks)
-        self.sources.extend([(filename, i) for i in range(len(doc_chunks))])
-        self.metadata.setdefault("files", []).append({"name": filename, "chunks": len(doc_chunks)})
-
-    def build(self):
-        if not self.chunks:
-            raise ValueError("No chunks to build.")
-        client = self._client()
-        embs, B = [], 96
-        for i in range(0, len(self.chunks), B):
-            batch = self.chunks[i:i+B]
-            resp = client.embed(texts=batch, model=self.model_embed, input_type="search_document")
-            embs.append(np.array(resp.embeddings, dtype=np.float32))
-        self.vectors = np.vstack(embs)
-        self.nn = NearestNeighbors(metric="cosine", algorithm="brute").fit(self.vectors)
-
-    def retrieve(self, query: str, k: Optional[int] = None):
-        if self.nn is None or self.vectors is None:
-            raise ValueError("Index not built.")
-        client = self._client()
-        resp = client.embed(texts=[query], model=self.model_embed, input_type="search_query")
-        q_emb = np.array(resp.embeddings[0], dtype=np.float32).reshape(1, -1)
-        distances, indices = self.nn.kneighbors(q_emb, n_neighbors=min(k or self.top_k, len(self.chunks)))
-        return [(1.0 - float(d), self.chunks[idx], *self.sources[idx]) for d, idx in zip(distances[0], indices[0])]
-
-    def answer(self, query: str, k: Optional[int] = None, max_context_chars: int = 2400):
-        top = self.retrieve(query, k)
-        blocks, total = [], 0
-        for score, chunk, fn, i in top:
-            snippet = chunk[:600]
-            block = f"[{fn}#{i}] {snippet}"
-            if total + len(block) > max_context_chars:
-                break
-            blocks.append(block)
-            total += len(block)
-        context = "\n\n".join(blocks)
-        sys_prompt = "You are a helpful assistant. Answer using ONLY the provided context. If unknown, say you don't know. Cite sources like [file#chunk]."
-        user_prompt = f"Question: {query}\n\nContext:\n{context}\n\nAnswer:"
-
-        client = self._client()
-        resp = client.chat(model=self.model_generate, message=f"{sys_prompt}\n\n{user_prompt}", temperature=0.3, max_tokens=300)
-        return {
-            "answer": resp.text.strip(),
-            "contexts": [{"score": s, "source": f"{fn}#{i}", "text": tx} for (s, tx, fn, i) in top],
-        }
-
-    def save(self, path: str):
-        blob = {
-            "model_embed": self.model_embed,
-            "model_generate": self.model_generate,
-            "top_k": self.top_k,
-            "chunk_chars": self.chunk_chars,
-            "chunk_overlap": self.chunk_overlap,
-            "metadata": self.metadata,
-            "chunks": self.chunks,
-            "sources": self.sources,
-            "vectors": self.vectors.astype(np.float32) if self.vectors is not None else None,
-        }
-        with open(path, "wb") as f:
-            pickle.dump(blob, f)
-
-    @classmethod
-    def load(cls, path: str):
-        with open(path, "rb") as f:
-            blob = pickle.load(f)
-        inst = cls(
-            model_embed=blob["model_embed"],
-            model_generate=blob["model_generate"],
-            top_k=blob["top_k"],
-            chunk_chars=blob["chunk_chars"],
-            chunk_overlap=blob["chunk_overlap"],
-            metadata=blob["metadata"],
+    def get_embeddings(self, texts):
+        self.rate_limit()
+        response = self.client.embed(
+            texts=texts,
+            model='embed-english-v3.0',
+            input_type='search_document'
         )
-        inst.chunks, inst.sources, inst.vectors = blob["chunks"], blob["sources"], blob["vectors"]
-        if inst.vectors is not None:
-            inst.nn = NearestNeighbors(metric="cosine", algorithm="brute").fit(inst.vectors)
-        return inst
+        return np.array(response.embeddings)
+
+    def build_index(self, files, subject_id=None):
+        all_chunks = []
+        all_meta = []
+        
+        for file_path in files:
+            if isinstance(file_path, dict):
+                file_path = file_path.get('file_path', '')
+            
+            if not isinstance(file_path, str):
+                continue
+                
+            if file_path.lower().endswith('.pdf'):
+                text = self.extract_pdf(file_path)
+            elif file_path.lower().endswith('.txt'):
+                text = self.extract_txt(file_path)
+            else:
+                continue
+            
+            if not text.strip():
+                continue
+            
+            chunks = self.chunk_text(text, subject_id=subject_id)
+            for i, chunk in enumerate(chunks):
+                all_chunks.append(chunk)
+                all_meta.append({
+                    'file': os.path.basename(file_path),
+                    'chunk_id': i,
+                    'file_path': file_path,
+                    'subject_id': subject_id
+                })
+        
+        if not all_chunks:
+            raise ValueError("No valid text chunks found")
+        
+        self.chunks = all_chunks
+        self.meta = all_meta
+        
+        tokenized = [chunk.lower().split() for chunk in all_chunks]
+        self.bm25 = BM25Okapi(tokenized)
+        
+        self.embeddings = self.get_embeddings(all_chunks)
+        self.nn = NearestNeighbors(n_neighbors=10, metric='cosine')
+        self.nn.fit(self.embeddings)
+
+    def search(self, query, top_k=5):
+        if not self.chunks or self.bm25 is None or self.nn is None:
+            return []
+        
+        query_tokens = query.lower().split()
+        bm25_scores = self.bm25.get_scores(query_tokens)
+        
+        query_embedding = self.get_embeddings([query])
+        nn_distances, nn_indices = self.nn.kneighbors(query_embedding)
+        
+        combined_scores = []
+        for i in range(len(self.chunks)):
+            bm25_score = bm25_scores[i]
+            if i < len(nn_distances[0]):
+                nn_score = 1 - nn_distances[0][i]
+            else:
+                nn_score = 0
+            combined_score = self.alpha * bm25_score + (1 - self.alpha) * nn_score
+            combined_scores.append((i, combined_score))
+        
+        combined_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        results = []
+        seen_files = {}
+        max_per_file = max(1, top_k // 3)
+        
+        for i, score in combined_scores:
+            if len(results) >= top_k:
+                break
+            file_name = self.meta[i]['file']
+            file_count = seen_files.get(file_name, 0)
+            
+            if file_count < max_per_file:
+                results.append({
+                    'chunk': self.chunks[i],
+                    'score': score,
+                    'metadata': self.meta[i]
+                })
+                seen_files[file_name] = file_count + 1
+        
+        return results
+
+    def generate_answer(self, question, search_results):
+        if not search_results:
+            return "I don't have enough information to answer that question."
+        
+        context = "\n\n".join([result['chunk'] for result in search_results])
+        
+        self.rate_limit()
+        response = self.client.chat(
+            message=question,
+            model='command-a-03-2025',
+            preamble="You are a helpful study assistant. Answer questions based on the provided context. Be accurate and helpful.",
+            chat_history=[],
+            documents=[{"text": context}]
+        )
+        return response.text
+
+    def generate_quiz(self, num_questions=5, description="", subject_id=None):
+        if not self.chunks:
+            return []
+        
+        if subject_id:
+            subject_chunks = []
+            for i, chunk in enumerate(self.chunks):
+                if i < len(self.meta):
+                    chunk_subject_id = self.meta[i].get('subject_id')
+                    if chunk_subject_id == int(subject_id):
+                        subject_chunks.append(chunk)
+            if not subject_chunks:
+                return []
+            chunks_to_use = subject_chunks
+        else:
+            chunks_to_use = self.chunks
+        
+        quiz_questions = []
+        used_chunks = set()
+        
+        for i in range(num_questions):
+            available_chunks = [j for j in range(len(chunks_to_use)) if j not in used_chunks]
+            if not available_chunks:
+                available_chunks = list(range(len(chunks_to_use)))
+                used_chunks.clear()
+            
+            chunk_index = available_chunks[i % len(available_chunks)]
+            chunk = chunks_to_use[chunk_index]
+            used_chunks.add(chunk_index)
+            
+            combined_content = chunk
+            if len(chunks_to_use) > 1:
+                additional_chunks = []
+                for j in range(min(2, len(chunks_to_use))):
+                    if j != chunk_index and j not in used_chunks:
+                        additional_chunks.append(chunks_to_use[j][:500])
+                if additional_chunks:
+                    combined_content = chunk + "\n\n" + "\n\n".join(additional_chunks)
+            
+            try:
+                self.rate_limit()
+                
+                if description:
+                    message = f"""Create ONE multiple choice question from this educational content:
+
+CONTENT: {combined_content[:2000]}
+
+TEACHER REQUIREMENTS: {description}
+
+IMPORTANT: You must respond in EXACTLY this format with no extra text:
+Question: [Your question here]
+A) [First option]
+B) [Second option] 
+C) [Third option]
+D) [Fourth option]
+Answer: A
+
+The Answer must be exactly A, B, C, or D. Choose the correct option letter. Focus on the teacher's requirements: {description}."""
+                else:
+                    message = f"""Create ONE multiple choice question from this educational content:
+
+CONTENT: {combined_content[:2000]}
+
+IMPORTANT: You must respond in EXACTLY this format with no extra text:
+Question: [Your question here]
+A) [First option]
+B) [Second option] 
+C) [Third option]
+D) [Fourth option]
+Answer: A
+
+The Answer must be exactly A, B, C, or D. Choose the correct option letter."""
+                
+                response = self.client.chat(
+                    message=message,
+                    model='command-a-03-2025',
+                    preamble="You are an expert quiz creator. You MUST follow the exact format. The answer must be exactly A, B, C, or D. Create questions that test real understanding of the content.",
+                    chat_history=[]
+                )
+                
+                text = response.text.strip()
+                
+                question = ""
+                options = []
+                correct = ""
+                
+                lines = text.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if line.startswith('Question:'):
+                        question = line.replace('Question:', '').strip()
+                    elif line.startswith('A)'):
+                        options.append(line.replace('A)', '').strip())
+                    elif line.startswith('B)'):
+                        options.append(line.replace('B)', '').strip())
+                    elif line.startswith('C)'):
+                        options.append(line.replace('C)', '').strip())
+                    elif line.startswith('D)'):
+                        options.append(line.replace('D)', '').strip())
+                    elif line.startswith('Answer:'):
+                        correct = line.replace('Answer:', '').strip().upper()
+                
+                if question and len(options) == 4 and correct in ['A', 'B', 'C', 'D']:
+                    quiz_questions.append({
+                        'question': question,
+                        'options': options,
+                        'correct': correct
+                    })
+                else:
+                    continue
+                
+            except Exception as e:
+                continue
+        
+        return quiz_questions
+
+    def rebuild_from_db(self, materials):
+        all_chunks = []
+        all_meta = []
+        
+        for material in materials:
+            if isinstance(material, dict):
+                material_id = material['id']
+                filename = material['filename']
+                sha = material['sha']
+                content = material.get('content', '')
+                subject_id = material['subject_id']
+                upload_time = material['upload_time']
+            else:
+                material_id, filename, sha, content, subject_id, upload_time = material
+            
+            if not content or not content.strip():
+                continue
+                
+            text = content
+            
+            chunks = self.chunk_text(text, subject_id=subject_id)
+            for i, chunk in enumerate(chunks):
+                all_chunks.append(chunk)
+                all_meta.append({
+                    'file': filename,
+                    'chunk_id': i,
+                    'file_path': f"db:{material_id}",
+                    'subject_id': subject_id
+                })
+        
+        if all_chunks:
+            self.chunks = all_chunks
+            self.meta = all_meta
+            
+            tokenized = [chunk.lower().split() for chunk in all_chunks]
+            self.bm25 = BM25Okapi(tokenized)
+            
+            self.embeddings = self.get_embeddings(all_chunks)
+            self.nn = NearestNeighbors(n_neighbors=10, metric='cosine')
+            self.nn.fit(self.embeddings)
+
+    def query(self, question, top_k=5):
+        results = self.search(question, top_k)
+        answer = self.generate_answer(question, results)
+        return answer, results

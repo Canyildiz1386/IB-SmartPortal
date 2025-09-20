@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Take Quiz{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">{{ quiz.title }}</h1>
+    
+    <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700">
+        <form method="POST" class="space-y-8">
+            {% for question in questions %}
+                {% set outer_loop = loop %}
+                <div class="bg-gray-700/50 rounded-lg p-6">
+                    <h3 class="text-white font-medium mb-4">{{ loop.index }}. {{ question.question }}</h3>
+                    <div class="space-y-3">
+                        {% for option in question.options %}
+                            <label class="flex items-center p-3 bg-gray-600/50 rounded-lg hover:bg-gray-600 transition-colors cursor-pointer">
+                                <input type="radio" name="q{{ outer_loop.index0 }}" value="{{ ['A', 'B', 'C', 'D'][loop.index0] }}" class="mr-3 text-blue-600 focus:ring-blue-500">
+                                <span class="text-gray-200">{{ ['A', 'B', 'C', 'D'][loop.index0] }}) {{ option }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+            
+            <button type="submit" class="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-4 px-6 rounded-lg font-medium transition-all transform hover:scale-105 text-lg">
+                Submit Quiz
+            </button>
+        </form>
+        
+        <script>
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const questions = {{ questions | length }};
+            let answered = 0;
+            let debugInfo = [];
+            
+            for (let i = 0; i < questions; i++) {
+                const checked = document.querySelector(`input[name="q${i}"]:checked`);
+                if (checked) {
+                    answered++;
+                    debugInfo.push(`Q${i}: ${checked.value}`);
+                } else {
+                    debugInfo.push(`Q${i}: Not answered`);
+                }
+            }
+            
+            console.log('Quiz submission debug:', debugInfo);
+            
+            if (answered < questions) {
+                e.preventDefault();
+                alert(`Please answer all ${questions} questions. You have answered ${answered} out of ${questions}.\n\nDebug: ${debugInfo.join(', ')}`);
+            }
+        });
+        </script>
+    </div>
+</div>
+{% endblock %}

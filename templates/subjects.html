@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Subjects{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">My Subjects</h1>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+            <h2 class="text-xl font-semibold mb-6 text-white">Current Subjects</h2>
+            
+            {% if user_subjects %}
+                <div class="space-y-3">
+                    {% for subject in user_subjects %}
+                        <div class="bg-gray-700/50 rounded-lg p-4 flex justify-between items-center">
+                            <div>
+                                <h3 class="text-white font-medium">{{ subject.name }}</h3>
+                            </div>
+                            <form method="POST" action="{{ url_for('assign_subject') }}" style="display: inline;">
+                                <input type="hidden" name="action" value="remove">
+                                <input type="hidden" name="subject_id" value="{{ subject.id }}">
+                                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                                        onclick="return confirm('Remove this subject?')">
+                                    Remove
+                                </button>
+                            </form>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-8">
+                    <p class="text-gray-400">No subjects assigned yet.</p>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+            <h2 class="text-xl font-semibold mb-6 text-white">Add Subject</h2>
+            
+            <form method="POST" action="{{ url_for('assign_subject') }}" class="space-y-4">
+                <input type="hidden" name="action" value="assign">
+                <div>
+                    <select name="subject_id" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">Select a subject...</option>
+                        {% for subject in all_subjects %}
+                            <option value="{{ subject.id }}">{{ subject.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <button type="submit" class="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-3 px-4 rounded-lg font-medium transition-all transform hover:scale-105">
+                    Add Subject
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

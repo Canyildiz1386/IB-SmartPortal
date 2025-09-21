@@ -208,7 +208,7 @@ def admin():
 			flash(f'User {username} created successfully!','success')
 		except Exception as e:flash(f'Error creating user: {str(e)}','error')
 	users,subjects=get_all_users(),get_subjects()
-	return render_template('admin.html',users=users,subjects=subjects)
+	return render_template('admin.html',users=users,all_subjects=subjects)
 
 @app.route('/delete_user/<int:user_id>')
 @admin_required
@@ -536,5 +536,5 @@ def get_score_distribution():
 if __name__=='__main__':
 	init_db()
 	init_rag_system()
-	port=int(os.environ.get('PORT',8000))
+	port=int(os.environ.get('PORT',8010))
 	app.run(debug=False,host='0.0.0.0',port=port)

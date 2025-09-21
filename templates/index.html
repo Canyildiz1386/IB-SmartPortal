@@ -31,6 +31,18 @@
             </button>
         </form>
         
+        {% set non_indexed_count = materials | selectattr('indexed', 'equalto', 0) | list | length %}
+        {% if non_indexed_count > 0 %}
+        <div class="mt-4 pt-4 border-t border-gray-700">
+            <form method="POST" action="{{ url_for('reindex_files') }}" class="space-y-4">
+                <button type="submit" id="reindexBtn" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded">
+                    🔄 Re-index {{ non_indexed_count }} Problem File(s)
+                </button>
+                <p class="text-sm text-gray-400 text-center">Fix indexing problems for files that failed to process properly</p>
+            </form>
+        </div>
+        {% endif %}
+        
         <div id="uploadLoading" class="hidden text-center py-8">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-400"></div>
             <p class="text-gray-400 mt-4 text-lg">Processing files...</p>
@@ -49,7 +61,13 @@
                             <h3 class="text-white font-medium">{{ material.filename }}</h3>
                             <p class="text-gray-400 text-sm">{{ material.upload_time }}</p>
                         </div>
-                        <div class="text-green-400 text-sm">✓</div>
+                        <div class="flex items-center space-x-2">
+                            {% if material.indexed %}
+                                <span class="text-green-400 text-sm">✓ Indexed</span>
+                            {% else %}
+                                <span class="text-orange-400 text-sm">⚠ Not Indexed</span>
+                            {% endif %}
+                        </div>
                     </div>
                 {% endfor %}
             </div>

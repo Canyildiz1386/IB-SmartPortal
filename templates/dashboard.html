@@ -118,12 +118,12 @@
     <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #202124;">User Distribution</h3>
         <div style="display: flex; flex-direction: column; gap: 16px;">
-            {% for label, value in user_distribution.items() %}
+            {% for label, value in user_distribution.labels|zip(user_distribution.values) %}
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #5f6368; font-size: 14px; font-weight: 500;">{{ label }}</span>
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <div style="width: 120px; height: 8px; background: #f1f3f4; border-radius: 4px; overflow: hidden;">
-                        <div style="width: {{ (value / user_distribution.values()|select('number')|list|max * 100) if user_distribution.values()|select('number')|list|max > 0 else 0 }}%; height: 100%; background: #1a73e8; transition: width 0.8s ease;"></div>
+                        <div style="width: {{ (value / user_distribution.values|max * 100) if user_distribution.values|max > 0 else 0 }}%; height: 100%; background: #1a73e8; transition: width 0.8s ease;"></div>
                     </div>
                     <span style="color: #202124; font-size: 14px; font-weight: 600; min-width: 30px; text-align: right;">{{ value }}</span>
                 </div>

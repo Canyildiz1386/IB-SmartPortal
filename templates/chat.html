@@ -3,39 +3,50 @@
 {% block title %}Chat{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto h-screen flex flex-col">
-    <div class="bg-gray-800/50 backdrop-blur-sm rounded-t-xl p-6 border-b border-gray-700">
-        <h1 class="text-2xl font-bold text-blue-400">💬 Study Assistant</h1>
-        <p class="text-gray-400 text-sm mt-1">Ask questions about your study materials</p>
+<div style="max-width: 1000px; margin: 0 auto; height: calc(100vh - 120px); display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e8eaed;">
+    <!-- Header -->
+    <div style="background: #1a73e8; padding: 24px; color: white;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="width: 48px; height: 48px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                <span class="material-icons" style="font-size: 24px;">chat</span>
+            </div>
+            <div>
+                <h1 style="margin: 0 0 4px 0; font-size: 24px; font-weight: 600;">Study Assistant</h1>
+                <p style="margin: 0; color: rgba(255,255,255,0.8); font-size: 14px;">Ask questions about your study materials</p>
+            </div>
+        </div>
     </div>
     
-    <div class="flex-1 bg-gray-800/30 backdrop-blur-sm overflow-y-auto p-6 space-y-4" id="chatContainer">
+    <!-- Chat Container -->
+    <div style="flex: 1; background: #f8f9fa; padding: 24px; overflow-y: auto;" id="chatContainer">
         {% if chat_history %}
             {% for entry in chat_history %}
-                <div class="flex justify-end">
-                    <div class="max-w-xs lg:max-w-md bg-blue-600 text-white p-4 rounded-lg rounded-br-none">
-                        <p class="text-sm">{{ entry.question }}</p>
+                <!-- User Message -->
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+                    <div style="max-width: 70%; background: #1a73e8; color: white; padding: 16px 20px; border-radius: 18px 18px 4px 18px;">
+                        <p style="margin: 0; font-size: 14px; line-height: 1.5;">{{ entry.question }}</p>
                     </div>
                 </div>
                 
-                <div class="flex justify-start">
-                    <div class="max-w-xs lg:max-w-2xl bg-gray-700 text-white p-4 rounded-lg rounded-bl-none">
-                        <div class="flex items-center mb-2">
-                            <div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center mr-2">
-                                <span class="text-xs">🤖</span>
+                <!-- AI Response -->
+                <div style="display: flex; justify-content: flex-start; margin-bottom: 24px;">
+                    <div style="max-width: 80%; background: white; padding: 16px 20px; border-radius: 18px 18px 18px 4px; border: 1px solid #e8eaed;">
+                        <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                            <div style="width: 32px; height: 32px; background: #34a853; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                                <span class="material-icons" style="font-size: 16px; color: white;">smart_toy</span>
                             </div>
-                            <span class="text-xs text-gray-400">AI Assistant</span>
+                            <span style="font-size: 12px; font-weight: 500; color: #5f6368;">AI Assistant</span>
                         </div>
-                        <div class="text-sm">
+                        <div style="font-size: 14px; line-height: 1.6; color: #202124;">
                             {{ entry.answer | safe }}
                         </div>
                         {% if entry.sources %}
-                            <div class="mt-3 pt-3 border-t border-gray-600">
-                                <p class="text-xs text-gray-400 mb-2">Sources:</p>
+                            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e8eaed;">
+                                <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 500; color: #5f6368;">Sources:</p>
                                 {% for source in entry.sources %}
-                                    <div class="bg-gray-600 p-2 rounded text-xs mb-1">
-                                        <span class="text-blue-300">{{ source.metadata.file }}</span>
-                                        <span class="text-gray-400 ml-2">({{ "%.1f"|format(source.score * 100) }}%)</span>
+                                    <div style="background: #f8f9fa; padding: 8px 12px; border-radius: 8px; margin-bottom: 4px; border: 1px solid #e8eaed;">
+                                        <span style="color: #1a73e8; font-weight: 500; font-size: 12px;">{{ source.metadata.file }}</span>
+                                        <span style="color: #5f6368; margin-left: 8px; font-size: 11px;">({{ "%.1f"|format(source.score * 100) }}%)</span>
                                     </div>
                                 {% endfor %}
                             </div>
@@ -44,52 +55,74 @@
                 </div>
             {% endfor %}
         {% else %}
-            <div class="flex justify-center items-center h-full">
-                <div class="text-center">
-                    <div class="text-6xl mb-4">🤖</div>
-                    <h3 class="text-xl text-gray-300 mb-2">Welcome to Study Assistant!</h3>
-                    <p class="text-gray-400">Ask me anything about your study materials.</p>
+            <div style="display: flex; justify-content: center; align-items: center; height: 100%; text-align: center;">
+                <div>
+                    <div style="width: 80px; height: 80px; background: #1a73e8; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
+                        <span class="material-icons" style="font-size: 40px; color: white;">smart_toy</span>
+                    </div>
+                    <h3 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 600; color: #202124;">Welcome to Study Assistant!</h3>
+                    <p style="margin: 0; color: #5f6368; font-size: 14px;">Ask me anything about your study materials.</p>
                 </div>
             </div>
         {% endif %}
         
-        <div id="loadingMessage" class="hidden flex justify-start">
-            <div class="max-w-xs lg:max-w-2xl bg-gray-700 text-white p-4 rounded-lg rounded-bl-none">
-                <div class="flex items-center mb-2">
-                    <div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center mr-2">
-                        <span class="text-xs">🤖</span>
+        <!-- Loading Message -->
+        <div id="loadingMessage" style="display: none; justify-content: flex-start; margin-bottom: 24px;">
+            <div style="max-width: 80%; background: white; padding: 16px 20px; border-radius: 18px 18px 18px 4px; border: 1px solid #e8eaed;">
+                <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                    <div style="width: 32px; height: 32px; background: #34a853; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                        <span class="material-icons" style="font-size: 16px; color: white;">smart_toy</span>
                     </div>
-                    <span class="text-xs text-gray-400">AI Assistant</span>
+                    <span style="font-size: 12px; font-weight: 500; color: #5f6368;">AI Assistant</span>
                 </div>
-                <div class="flex items-center space-x-2">
-                    <div class="flex space-x-1">
-                        <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
-                        <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-                        <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="display: flex; gap: 3px;">
+                        <div style="width: 6px; height: 6px; background: #1a73e8; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out;"></div>
+                        <div style="width: 6px; height: 6px; background: #1a73e8; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; animation-delay: 0.2s;"></div>
+                        <div style="width: 6px; height: 6px; background: #1a73e8; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; animation-delay: 0.4s;"></div>
                     </div>
-                    <span class="text-sm text-gray-400">Thinking...</span>
+                    <span style="font-size: 14px; color: #5f6368; font-weight: 500;">Thinking...</span>
                 </div>
             </div>
         </div>
     </div>
     
-    <div class="bg-gray-800/50 backdrop-blur-sm rounded-b-xl p-6 border-t border-gray-700">
-        <form method="POST" class="flex space-x-4" id="chatForm">
-            <div class="flex-1">
+    <!-- Input Form -->
+    <div style="background: white; padding: 24px; border-top: 1px solid #e8eaed;">
+        <form method="POST" style="display: flex; gap: 12px; align-items: flex-end;" id="chatForm">
+            <div style="flex: 1;">
                 <textarea name="question" rows="2" required placeholder="Ask a question about your materials..." 
-                          class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          style="width: 100%; padding: 12px 16px; background: #ffffff; border: 1px solid #dadce0; border-radius: 8px; font-size: 14px; font-family: inherit; line-height: 1.5; resize: none; outline: none;"
                           id="questionInput"></textarea>
             </div>
             <button type="submit" id="askBtn" 
-                    class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center space-x-2">
+                    style="background: #1a73e8; color: white; border: none; border-radius: 8px; padding: 12px 20px; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px;">
                 <span id="btnText">Send</span>
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                </svg>
+                <span class="material-icons" style="font-size: 16px;">send</span>
             </button>
         </form>
     </div>
 </div>
+
+<style>
+@keyframes bounce {
+    0%, 80%, 100% { 
+        transform: scale(0);
+    } 
+    40% { 
+        transform: scale(1);
+    }
+}
+
+#questionInput:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+}
+
+#askBtn:hover {
+    background: #1557b0;
+}
+</style>
 
 <script>
 document.getElementById('chatForm').addEventListener('submit', function(e) {
@@ -100,7 +133,7 @@ document.getElementById('chatForm').addEventListener('submit', function(e) {
     
     btn.disabled = true;
     btnText.textContent = 'Sending...';
-    loadingMessage.classList.remove('hidden');
+    loadingMessage.style.display = 'flex';
     
     chatContainer.scrollTop = chatContainer.scrollHeight;
 });

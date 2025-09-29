@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+
+{% block title %}Notes{% endblock %}
+{% block page_title %}Notes{% endblock %}
+
+{% block content %}
+<!-- Header Section -->
+<div style="background: white; padding: 32px; margin-bottom: 24px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="width: 56px; height: 56px; background: #fbbc04; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                <span class="material-icons" style="font-size: 28px; color: white;">note</span>
+            </div>
+            <div>
+                <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 600; color: #202124;">My Notes</h1>
+                <p style="margin: 0; color: #5f6368; font-size: 16px;">Create, organize, and manage your study notes</p>
+            </div>
+        </div>
+        <div style="display: flex; gap: 12px;">
+            <button onclick="createNewNote()" class="google-button">
+                <span class="material-icons" style="font-size: 18px; margin-right: 8px;">add</span>
+                New Note
+            </button>
+            <button onclick="toggleVoiceRecording()" id="voiceBtn" class="google-button secondary">
+                <span class="material-icons" style="font-size: 18px; margin-right: 8px;">mic</span>
+                Voice Note
+            </button>
+        </div>
+    </div>
+    
+    <div style="display: flex; gap: 16px;">
+        <div style="flex: 1;">
+            <input type="text" id="searchNotes" class="google-input" placeholder="Search notes..." 
+                   style="background: #f8f9fa; border: 1px solid #dadce0;">
+        </div>
+        <select id="filterSubject" class="google-input" style="width: 200px;">
+            <option value="">All Subjects</option>
+            {% for subject in subjects %}
+            <option value="{{ subject.id }}">{{ subject.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+<!-- Notes Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+    {% for note in notes %}
+    <div onclick="openNote({{ note.id }})" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e8eaed; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';">
+        <div style="display: flex; align-items: center; margin-bottom: 16px;">
+            <div style="width: 40px; height: 40px; background: #fbbc04; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                <span class="material-icons" style="font-size: 20px; color: white;">note</span>
+            </div>
+            <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #202124; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ note.title }}</h3>
+        </div>
+        <p style="margin: 0 0 16px 0; color: #5f6368; font-size: 14px; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">{{ note.content[:100] }}{% if note.content|length > 100 %}...{% endif %}</p>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e8eaed;">
+            <span style="color: #5f6368; font-size: 12px; font-weight: 500;">{{ note.created_at if note.created_at else 'Recently' }}</span>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="editNote({{ note.id }}, event)" class="google-button secondary" style="padding: 6px; min-width: auto;">
+                    <span class="material-icons" style="font-size: 16px;">edit</span>
+                </button>
+                <button onclick="deleteNote({{ note.id }}, event)" class="google-button" style="background: #ea4335; padding: 6px; min-width: auto;">
+                    <span class="material-icons" style="font-size: 16px;">delete</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not notes %}
+<div style="background: white; padding: 64px; text-align: center; border-radius: 12px; border: 1px solid #e8eaed; margin-top: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <div style="width: 80px; height: 80px; background: #fbbc04; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
+        <span class="material-icons" style="font-size: 40px; color: white;">note_add</span>
+    </div>
+    <h3 style="margin: 0 0 12px 0; color: #202124; font-size: 20px; font-weight: 600;">No notes yet</h3>
+    <p style="margin: 0 0 24px 0; color: #5f6368; font-size: 14px;">Create your first note to get started with your studies</p>
+    <button onclick="createNewNote()" class="google-button">
+        <span class="material-icons" style="font-size: 18px; margin-right: 8px;">add</span>
+        Create Your First Note
+    </button>
+</div>
+{% endif %}
+
+<!-- Note Editor Modal -->
+<div id="noteEditorModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 12px; width: 90%; max-width: 800px; height: 80%; display: flex; flex-direction: column; box-shadow: 0 4px 24px rgba(0,0,0,0.15);">
+        <div style="padding: 20px 24px; border-bottom: 1px solid #e8eaed; display: flex; align-items: center; justify-content: space-between; background: #f8f9fa; border-radius: 12px 12px 0 0;">
+            <h3 style="margin: 0; font-size: 18px; font-weight: 600;">Edit Note</h3>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="saveNote()" class="google-button" style="padding: 8px 16px;">
+                    <span class="material-icons" style="font-size: 16px; margin-right: 4px;">save</span>
+                    Save
+                </button>
+                <button onclick="closeNoteEditor()" class="google-button secondary" style="padding: 8px 16px;">Cancel</button>
+            </div>
+        </div>
+        
+        <div style="flex: 1; padding: 24px; display: flex; flex-direction: column; overflow: hidden;">
+            <div style="margin-bottom: 16px;">
+                <input type="text" id="noteTitle" class="google-input" placeholder="Note title..." 
+                       style="font-size: 18px; font-weight: 600;">
+            </div>
+            
+            <div style="margin-bottom: 16px;">
+                <select id="noteSubject" class="google-input" style="width: 200px;">
+                    <option value="">Select Subject</option>
+                    {% for subject in subjects %}
+                    <option value="{{ subject.id }}">{{ subject.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div style="flex: 1; display: flex; flex-direction: column;">
+                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                    <button onclick="insertImage()" class="google-button secondary" style="padding: 8px 12px;">
+                        <span class="material-icons" style="font-size: 16px; margin-right: 4px;">image</span>
+                        Add Image
+                    </button>
+                    <button onclick="toggleVoiceInput()" id="voiceInputBtn" class="google-button secondary" style="padding: 8px 12px;">
+                        <span class="material-icons" style="font-size: 16px; margin-right: 4px;">mic</span>
+                        Voice Input
+                    </button>
+                    <button onclick="extractTextFromImage()" class="google-button secondary" style="padding: 8px 12px;">
+                        <span class="material-icons" style="font-size: 16px; margin-right: 4px;">text_fields</span>
+                        Extract Text
+                    </button>
+                </div>
+                
+                <textarea id="noteContent" class="google-input" placeholder="Start writing your note..." 
+                          style="flex: 1; resize: none; border: 1px solid #dadce0; border-radius: 8px; padding: 16px; font-family: 'Roboto', sans-serif; line-height: 1.5;"></textarea>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden file input for image upload -->
+<input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+
+<script>
+let currentNoteId = null;
+let isRecording = false;
+let mediaRecorder = null;
+let audioChunks = [];
+
+function createNewNote() {
+    currentNoteId = null;
+    document.getElementById('noteTitle').value = '';
+    document.getElementById('noteContent').value = '';
+    document.getElementById('noteSubject').value = '';
+    document.getElementById('noteEditorModal').style.display = 'block';
+}
+
+function openNote(noteId) {
+    // Implementation for opening existing note
+    console.log('Opening note:', noteId);
+}
+
+function editNote(noteId, event) {
+    event.stopPropagation();
+    currentNoteId = noteId;
+    // Load note data and open editor
+    document.getElementById('noteEditorModal').style.display = 'block';
+}
+
+function deleteNote(noteId, event) {
+    event.stopPropagation();
+    if (confirm('Are you sure you want to delete this note?')) {
+        fetch(`/delete_note/${noteId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error deleting note');
+            }
+        });
+    }
+}
+
+function saveNote() {
+    const title = document.getElementById('noteTitle').value;
+    const content = document.getElementById('noteContent').value;
+    const subjectId = document.getElementById('noteSubject').value;
+    
+    if (!title.trim() || !content.trim()) {
+        alert('Please fill in both title and content');
+        return;
+    }
+    
+    const url = currentNoteId ? `/update_note/${currentNoteId}` : '/create_note';
+    const method = currentNoteId ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            title: title,
+            content: content,
+            subject_id: subjectId || null
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeNoteEditor();
+            location.reload();
+        } else {
+            alert('Error saving note');
+        }
+    });
+}
+
+function closeNoteEditor() {
+    document.getElementById('noteEditorModal').style.display = 'none';
+}
+
+function insertImage() {
+    document.getElementById('imageInput').click();
+}
+
+function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+            img.style.margin = '8px 0';
+            img.style.borderRadius = '8px';
+            
+            const textarea = document.getElementById('noteContent');
+            textarea.value += '\n[Image uploaded]\n';
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function toggleVoiceInput() {
+    if (!isRecording) {
+        startVoiceRecording();
+    } else {
+        stopVoiceRecording();
+    }
+}
+
+function startVoiceRecording() {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+            
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+            
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                sendAudioToServer(audioBlob);
+                stream.getTracks().forEach(track => track.stop());
+            };
+            
+            mediaRecorder.start();
+            isRecording = true;
+            
+            const btn = document.getElementById('voiceInputBtn');
+            btn.innerHTML = '<span class="material-icons" style="font-size: 16px; margin-right: 4px;">stop</span>Stop Recording';
+            btn.style.background = '#ea4335';
+        })
+        .catch(err => {
+            console.error('Error accessing microphone:', err);
+            alert('Error accessing microphone');
+        });
+}
+
+function stopVoiceRecording() {
+    if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        
+        const btn = document.getElementById('voiceInputBtn');
+        btn.innerHTML = '<span class="material-icons" style="font-size: 16px; margin-right: 4px;">mic</span>Voice Input';
+        btn.style.background = '';
+    }
+}
+
+function sendAudioToServer(audioBlob) {
+    const formData = new FormData();
+    formData.append('audio', audioBlob);
+    
+    fetch('/voice_to_text', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const textarea = document.getElementById('noteContent');
+            textarea.value += data.text + ' ';
+        } else {
+            alert('Error converting speech to text');
+        }
+    });
+}
+
+function extractTextFromImage() {
+    document.getElementById('imageInput').click();
+}
+
+// Search functionality
+document.getElementById('searchNotes').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const noteCards = document.querySelectorAll('[onclick*="openNote"]');
+    
+    noteCards.forEach(card => {
+        const title = card.querySelector('h3').textContent.toLowerCase();
+        const content = card.querySelector('p').textContent.toLowerCase();
+        
+        if (title.includes(searchTerm) || content.includes(searchTerm)) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+});
+
+// Subject filter
+document.getElementById('filterSubject').addEventListener('change', function(e) {
+    // Implementation for subject filtering
+    console.log('Filter by subject:', e.target.value);
+});
+</script>
+{% endblock %}

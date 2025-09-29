@@ -1,27 +1,388 @@
-{% extends "base.html" %}
-
-{% block title %}Login{% endblock %}
-
-{% block content %}
-<div class="max-w-sm mx-auto">
-    <div class="bg-gray-800 rounded-lg p-6">
-        <h2 class="text-xl font-bold text-center mb-4 text-blue-400">Login</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Study - Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         
-        <form method="POST" class="space-y-4">
-            <div>
-                <input type="text" name="username" required placeholder="Username"
-                       class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
+        body {
+            font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            opacity: 0.3;
+        }
+        
+        .login-container {
+            width: 100%;
+            max-width: 450px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 32px;
+            padding: 48px 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1), 0 8px 32px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255,255,255,0.2);
+            text-align: center;
+            animation: slideInUp 0.8s cubic-bezier(0.4, 0.0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #1a73e8, #4285f4, #34a853, #fbbc04, #ea4335);
+        }
+        
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        .app-icon {
+            width: 96px;
+            height: 96px;
+            background: linear-gradient(135deg, #1a73e8, #4285f4);
+            border-radius: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: white;
+            margin: 0 auto 32px;
+            box-shadow: 0 12px 40px rgba(26, 115, 232, 0.3);
+            animation: float 4s ease-in-out infinite;
+            position: relative;
+        }
+        
+        .app-icon::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            right: -4px;
+            bottom: -4px;
+            background: linear-gradient(135deg, #1a73e8, #4285f4);
+            border-radius: 32px;
+            z-index: -1;
+            opacity: 0.3;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-12px) rotate(2deg); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.3; }
+            50% { transform: scale(1.05); opacity: 0.1; }
+        }
+        
+        .login-title {
+            font-size: 36px;
+            font-weight: 600;
+            color: #202124;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #1a73e8, #4285f4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .login-subtitle {
+            color: #5f6368;
+            font-size: 18px;
+            margin-bottom: 40px;
+            font-weight: 400;
+        }
+        
+        .form-group {
+            margin-bottom: 28px;
+            text-align: left;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 12px;
+            color: #202124;
+            font-weight: 500;
+            font-size: 15px;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 18px 24px;
+            border: 2px solid #e8eaed;
+            border-radius: 20px;
+            font-size: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            background: #ffffff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            font-family: inherit;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 6px rgba(26, 115, 232, 0.1), 0 8px 24px rgba(26, 115, 232, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        .form-input::placeholder {
+            color: #9aa0a6;
+        }
+        
+        .login-button {
+            width: 100%;
+            background: linear-gradient(135deg, #1a73e8, #4285f4);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 18px 24px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            box-shadow: 0 6px 20px rgba(26, 115, 232, 0.3);
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-family: inherit;
+        }
+        
+        .login-button:hover {
+            background: linear-gradient(135deg, #1557b0, #1a73e8);
+            box-shadow: 0 8px 28px rgba(26, 115, 232, 0.4);
+            transform: translateY(-3px);
+        }
+        
+        .login-button:active {
+            transform: translateY(-1px);
+        }
+        
+        .demo-info {
+            background: linear-gradient(135deg, #f8f9fa, #e8eaed);
+            border-radius: 20px;
+            padding: 24px;
+            margin-top: 24px;
+            border: 1px solid #dadce0;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+        }
+        
+        .demo-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: #202124;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .demo-accounts {
+            display: grid;
+            gap: 14px;
+        }
+        
+        .demo-account {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 16px 20px;
+            border: 1px solid #e8eaed;
+            font-size: 15px;
+            color: #5f6368;
+            transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .demo-account:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .demo-account strong {
+            color: #1a73e8;
+            font-weight: 600;
+        }
+        
+        .error-message {
+            background: linear-gradient(135deg, #fce8e6, #fce8e6);
+            color: #d93025;
+            padding: 16px 20px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            font-size: 15px;
+            border: 1px solid #fce8e6;
+            box-shadow: 0 4px 12px rgba(217, 48, 37, 0.1);
+        }
+        
+        .floating-shapes {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+        }
+        
+        .shape {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: float-shape 6s ease-in-out infinite;
+        }
+        
+        .shape:nth-child(1) {
+            width: 80px;
+            height: 80px;
+            top: 20%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+        
+        .shape:nth-child(2) {
+            width: 120px;
+            height: 120px;
+            top: 60%;
+            right: 10%;
+            animation-delay: 2s;
+        }
+        
+        .shape:nth-child(3) {
+            width: 60px;
+            height: 60px;
+            bottom: 20%;
+            left: 20%;
+            animation-delay: 4s;
+        }
+        
+        @keyframes float-shape {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+        
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 32px 24px;
+                border-radius: 24px;
+            }
             
-            <div>
-                <input type="password" name="password" required placeholder="Password"
-                       class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
+            .app-icon {
+                width: 80px;
+                height: 80px;
+                font-size: 40px;
+                border-radius: 24px;
+            }
             
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded">
-                Login
+            .login-title {
+                font-size: 32px;
+            }
+            
+            .login-subtitle {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="floating-shapes">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+    </div>
+    
+    <div class="login-container">
+        <div class="login-card">
+            <div class="app-icon">
+                <span class="material-icons">school</span>
+            </div>
+            <h1 class="login-title">Smart Study</h1>
+            <p class="login-subtitle">Sign in to your account</p>
+            
+            {% if error %}
+            <div class="error-message">
+                {{ error }}
+            </div>
+            {% endif %}
+            
+            <form method="POST">
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" name="username" required placeholder="Enter your username" class="form-input">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" name="password" required placeholder="Enter your password" class="form-input">
+                </div>
+                
+                <button type="submit" class="login-button">
+                    <span class="material-icons">login</span>
+                    Sign In
             </button>
         </form>
+            
+            <div class="demo-info">
+                <div class="demo-title">
+                    <span class="material-icons">info</span>
+                    Demo Accounts
+                </div>
+                <div class="demo-accounts">
+                    <div class="demo-account">
+                        <strong>Admin:</strong> admin / admin123
+                    </div>
+                    <div class="demo-account">
+                        <strong>Teacher:</strong> teacher / teacher123
+                    </div>
+                    <div class="demo-account">
+                        <strong>Student:</strong> student / student123
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
-{% endblock %}
+</body>
+</html>

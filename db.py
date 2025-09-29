@@ -24,7 +24,9 @@ def init_db():
 	cursor.execute('''CREATE TABLE IF NOT EXISTS quiz_assignments (id INTEGER PRIMARY KEY AUTOINCREMENT,quiz_id INTEGER,student_id INTEGER,assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY (quiz_id) REFERENCES quizzes (id),FOREIGN KEY (student_id) REFERENCES users (id))''')
     
 	cursor.execute('''CREATE TABLE IF NOT EXISTS quiz_results (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,quiz_id INTEGER,score REAL NOT NULL,answers TEXT NOT NULL,time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY (user_id) REFERENCES users (id),FOREIGN KEY (quiz_id) REFERENCES quizzes (id))''')
-    
+	
+	cursor.execute('''CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,title TEXT NOT NULL,content TEXT NOT NULL,subject_id INTEGER,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY (user_id) REFERENCES users (id),FOREIGN KEY (subject_id) REFERENCES subjects (id))''')
+	
 	try:cursor.execute('ALTER TABLE quiz_results ADD COLUMN quiz_id INTEGER')
 	except:pass
 	try:cursor.execute('ALTER TABLE quiz_results ADD COLUMN score REAL')

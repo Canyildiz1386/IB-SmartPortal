@@ -1,89 +1,163 @@
 {% extends "base.html" %}
 
-{% block title %}Upload{% endblock %}
+{% block title %}Upload Materials{% endblock %}
+{% block page_title %}Upload Materials{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <h1 class="text-2xl font-bold mb-6 text-blue-400">Upload Materials</h1>
-    
-    <div class="bg-gray-800 rounded-lg p-6 mb-6">
-        <h2 class="text-lg font-semibold mb-4 text-white">Upload Files</h2>
-        
-        <form method="POST" enctype="multipart/form-data" class="space-y-4" id="uploadForm">
-            <div>
-                <label class="block text-sm font-medium text-gray-300 mb-2">Select Subject</label>
-                <select name="subject_id" required class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Choose a subject...</option>
-                    {% for subject in subjects %}
-                        <option value="{{ subject.id }}">{{ subject.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <div>
-                <input type="file" name="files" multiple accept=".pdf,.txt" required
-                       class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:bg-blue-600 file:text-white hover:file:bg-blue-700">
-                <p class="text-sm text-gray-400 mt-1">PDF or TXT files (max 10MB each)</p>
-            </div>
-            
-            <button type="submit" id="uploadBtn" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded">
-                Upload & Index
-            </button>
-        </form>
-        
-        {% set non_indexed_count = materials | selectattr('indexed', 'equalto', 0) | list | length %}
-        {% if non_indexed_count > 0 %}
-        <div class="mt-4 pt-4 border-t border-gray-700">
-            <form method="POST" action="{{ url_for('reindex_files') }}" class="space-y-4">
-                <button type="submit" id="reindexBtn" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded">
-                    🔄 Re-index {{ non_indexed_count }} Problem File(s)
-                </button>
-                <p class="text-sm text-gray-400 text-center">Fix indexing problems for files that failed to process properly</p>
-            </form>
+<!-- Upload Section -->
+<div style="background: white; padding: 32px; margin-bottom: 24px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
+        <div style="width: 56px; height: 56px; background: #1a73e8; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+            <span class="material-icons" style="font-size: 28px; color: white;">cloud_upload</span>
         </div>
-        {% endif %}
-        
-        <div id="uploadLoading" class="hidden text-center py-8">
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-400"></div>
-            <p class="text-gray-400 mt-4 text-lg">Processing files...</p>
-            <p class="text-gray-500 mt-2 text-sm">This may take a few moments while we analyze your content</p>
+        <div>
+            <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 600; color: #202124;">Upload Study Materials</h1>
+            <p style="margin: 0; color: #5f6368; font-size: 16px;">Add PDF and text files to your knowledge base</p>
         </div>
     </div>
     
-    <div class="bg-gray-800 rounded-lg p-6">
-        <h2 class="text-lg font-semibold mb-4 text-white">Uploaded Files</h2>
-        
-        {% if materials %}
-            <div class="space-y-2">
-                {% for material in materials %}
-                    <div class="bg-gray-700 rounded p-3 flex justify-between items-center">
-                        <div>
-                            <h3 class="text-white font-medium">{{ material.filename }}</h3>
-                            <p class="text-gray-400 text-sm">{{ material.upload_time }}</p>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            {% if material.indexed %}
-                                <span class="text-green-400 text-sm">✓ Indexed</span>
-                            {% else %}
-                                <span class="text-orange-400 text-sm">⚠ Not Indexed</span>
-                            {% endif %}
-                        </div>
-                    </div>
+    <form method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 20px;" id="uploadForm">
+        <div>
+            <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Select Subject</label>
+            <select name="subject_id" required class="google-input">
+                <option value="">Choose a subject...</option>
+                {% for subject in subjects %}
+                    <option value="{{ subject.id }}">{{ subject.name }}</option>
                 {% endfor %}
+            </select>
+        </div>
+        
+        <div>
+            <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Upload Files</label>
+            <div style="border: 2px dashed #dadce0; border-radius: 8px; padding: 32px; text-align: center; background: #f8f9fa; transition: all 0.2s ease; position: relative;" onmouseover="this.style.borderColor='#1a73e8'; this.style.background='#e8f0fe';" onmouseout="this.style.borderColor='#dadce0'; this.style.background='#f8f9fa';">
+                <span class="material-icons" style="font-size: 40px; color: #5f6368; margin-bottom: 12px;">cloud_upload</span>
+                <p style="margin: 0 0 8px 0; color: #202124; font-weight: 500; font-size: 16px;">Drop files here or click to browse</p>
+                <input type="file" name="files" multiple accept=".pdf,.txt" required style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+                <p style="margin: 8px 0 0 0; color: #5f6368; font-size: 14px;">PDF or TXT files (max 10MB each)</p>
             </div>
-        {% else %}
-            <div class="text-center py-6">
-                <p class="text-gray-400">No files uploaded yet.</p>
-            </div>
-        {% endif %}
+        </div>
+        
+        <button type="submit" id="uploadBtn" class="google-button" style="width: 100%; padding: 16px; font-size: 16px;">
+            <span class="material-icons" style="font-size: 20px; margin-right: 8px;">cloud_upload</span>
+            Upload & Index Files
+        </button>
+    </form>
+    
+    {% set non_indexed_count = materials | selectattr('indexed', 'equalto', 0) | list | length %}
+    {% if non_indexed_count > 0 %}
+    <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e8eaed;">
+        <form method="POST" action="{{ url_for('reindex_files') }}">
+            <button type="submit" id="reindexBtn" class="google-button secondary" style="width: 100%; padding: 16px; font-size: 16px;">
+                <span class="material-icons" style="font-size: 20px; margin-right: 8px;">refresh</span>
+                Re-index {{ non_indexed_count }} Problem File(s)
+            </button>
+            <p style="margin: 12px 0 0 0; color: #5f6368; font-size: 14px; text-align: center;">Fix indexing problems for files that failed to process properly</p>
+        </form>
+    </div>
+    {% endif %}
+    
+    <div id="uploadLoading" style="display: none; text-align: center; padding: 32px;">
+        <div style="display: inline-block; width: 32px; height: 32px; border: 3px solid #f3f3f3; border-top: 3px solid #1a73e8; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <p style="margin: 16px 0 8px 0; color: #5f6368; font-size: 16px; font-weight: 500;">Processing files...</p>
+        <p style="margin: 0; color: #5f6368; font-size: 14px;">This may take a few moments while we analyze your content</p>
     </div>
 </div>
 
+<!-- Files List -->
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+        <span class="material-icons" style="color: #1a73e8; font-size: 20px;">description</span>
+        <h2 style="margin: 0; font-size: 20px; font-weight: 600; color: #202124;">Uploaded Files</h2>
+    </div>
+    
+    {% if materials %}
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            {% for material in materials %}
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border-radius: 8px; background: #f8f9fa; border: 1px solid #e8eaed; transition: all 0.2s ease;" onmouseover="this.style.background='#e8f0fe'; this.style.borderColor='#1a73e8';" onmouseout="this.style.background='#f8f9fa'; this.style.borderColor='#e8eaed';">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 40px; height: 40px; background: #f8f9fa; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid #dadce0;">
+                        <span class="material-icons" style="font-size: 20px; color: #5f6368;">description</span>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 600; color: #202124;">{{ material.filename }}</h3>
+                        <p style="margin: 0; color: #5f6368; font-size: 12px;">{{ material.upload_time }}</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    {% if material.indexed %}
+                        <span style="color: #34a853; font-size: 12px; font-weight: 600; background: #e8f5e8; padding: 4px 8px; border-radius: 4px;">✓ Indexed</span>
+                    {% else %}
+                        <span style="color: #fbbc04; font-size: 12px; font-weight: 600; background: #fff3e0; padding: 4px 8px; border-radius: 4px;">⚠ Not Indexed</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 48px;">
+            <div style="width: 64px; height: 64px; background: #f8f9fa; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; border: 1px solid #dadce0;">
+                <span class="material-icons" style="font-size: 32px; color: #5f6368;">cloud_upload</span>
+            </div>
+            <h3 style="margin: 0 0 8px 0; color: #5f6368; font-size: 18px; font-weight: 500;">No files uploaded yet</h3>
+            <p style="margin: 0; color: #5f6368; font-size: 14px;">Upload your first study material to get started</p>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+
 <script>
 document.getElementById('uploadForm').addEventListener('submit', function() {
-    document.getElementById('uploadBtn').disabled = true;
-    document.getElementById('uploadBtn').textContent = 'Processing...';
-    document.getElementById('uploadLoading').classList.remove('hidden');
+    const btn = document.getElementById('uploadBtn');
+    const loading = document.getElementById('uploadLoading');
+    
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons" style="font-size: 20px; margin-right: 8px;">hourglass_empty</span>Processing...';
+    loading.style.display = 'block';
 });
+
+// Add file drag and drop functionality
+const fileInput = document.querySelector('input[type="file"]');
+const dropArea = fileInput.parentElement;
+
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, preventDefaults, false);
+});
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+['dragenter', 'dragover'].forEach(eventName => {
+    dropArea.addEventListener(eventName, highlight, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, unhighlight, false);
+});
+
+function highlight(e) {
+    dropArea.style.borderColor = '#1a73e8';
+    dropArea.style.background = '#e8f0fe';
+}
+
+function unhighlight(e) {
+    dropArea.style.borderColor = '#dadce0';
+    dropArea.style.background = '#f8f9fa';
+}
+
+dropArea.addEventListener('drop', handleDrop, false);
+
+function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    fileInput.files = files;
+}
 </script>
 {% endblock %}

@@ -104,7 +104,7 @@ class SmartStudyRAG:
 		response=self.client.chat(message=question,model='command-a-03-2025',preamble="You are a helpful study assistant. Answer questions based on the provided context. Be accurate and helpful.",chat_history=[],documents=[{"text":context}])
 		return response.text
 
-	def generate_quiz(self,num_questions=5,description="",subject_id=None):
+	def generate_quiz(self,num_questions=5,description="",subject_id=None,existing_questions=None):
 		if not self.chunks:return []
 		if subject_id:
 			subject_chunks=[]
@@ -117,6 +117,12 @@ class SmartStudyRAG:
 		else:chunks_to_use=self.chunks
 		quiz_questions=[]
 		used_chunks=set()
+		existing_questions_text=""
+		if existing_questions:
+			existing_questions_text="\n\nEXISTING QUESTIONS TO AVOID DUPLICATING:\n"
+			for i,eq in enumerate(existing_questions):
+				existing_questions_text+=f"{i+1}. {eq.get('question','')}\n"
+		
 		for i in range(num_questions):
 			available_chunks=[j for j in range(len(chunks_to_use)) if j not in used_chunks]
 			if not available_chunks:
@@ -140,6 +146,7 @@ class SmartStudyRAG:
 CONTENT: {combined_content[:2000]}
 
 TEACHER REQUIREMENTS: {description}
+{existing_questions_text}
 
 IMPORTANT: You must respond in EXACTLY this format with no extra text:
 Question: [Your question here]
@@ -149,11 +156,12 @@ C) [Third option]
 D) [Fourth option]
 Answer: A
 
-The Answer must be exactly A, B, C, or D. Choose the correct option letter. Focus on the teacher's requirements: {description}."""
+The Answer must be exactly A, B, C, or D. Choose the correct option letter. Focus on the teacher's requirements: {description}. Make sure your question is completely different from any existing questions listed above."""
 				else:
 					message=f"""Create ONE multiple choice question from this educational content:
 
 CONTENT: {combined_content[:2000]}
+{existing_questions_text}
 
 IMPORTANT: You must respond in EXACTLY this format with no extra text:
 Question: [Your question here]
@@ -163,8 +171,8 @@ C) [Third option]
 D) [Fourth option]
 Answer: A
 
-The Answer must be exactly A, B, C, or D. Choose the correct option letter."""
-				response=self.client.chat(message=message,model='command-a-03-2025',preamble="You are an expert quiz creator. You MUST follow the exact format. The answer must be exactly A, B, C, or D. Create questions that test real understanding of the content.",chat_history=[])
+The Answer must be exactly A, B, C, or D. Choose the correct option letter. Make sure your question is completely different from any existing questions listed above."""
+				response=self.client.chat(message=message,model='command-a-03-2025',preamble="You are an expert quiz creator. You MUST follow the exact format. The answer must be exactly A, B, C, or D. Create questions that test real understanding of the content. Avoid creating questions that are similar to existing ones.",chat_history=[])
 				text=response.text.strip()
 				question,options,correct="",[],""
 				lines=text.split('\n')
@@ -177,10 +185,32 @@ The Answer must be exactly A, B, C, or D. Choose the correct option letter."""
 					elif line.startswith('D)'):options.append(line.replace('D)','').strip())
 					elif line.startswith('Answer:'):correct=line.replace('Answer:','').strip().upper()
 				if question and len(options)==4 and correct in ['A','B','C','D']:
-					quiz_questions.append({'question':question,'options':options,'correct':correct})
+					# Check for similarity with existing questions
+					is_duplicate=False
+					if existing_questions:
+						for eq in existing_questions:
+							if self._questions_similar(question,eq.get('question','')):
+								is_duplicate=True
+								break
+					if not is_duplicate:
+						quiz_questions.append({'question':question,'options':options,'correct':correct,'type':'multiple_choice'})
 				else:continue
 			except:continue
 		return quiz_questions
+
+	def _questions_similar(self,question1,question2,threshold=0.8):
+		"""Check if two questions are similar using simple text similarity"""
+		if not question1 or not question2:
+			return False
+		# Simple similarity check - can be improved with more sophisticated methods
+		words1=set(question1.lower().split())
+		words2=set(question2.lower().split())
+		if not words1 or not words2:
+			return False
+		intersection=len(words1.intersection(words2))
+		union=len(words1.union(words2))
+		similarity=intersection/union if union>0 else 0
+		return similarity>=threshold
 
 	def rebuild_from_db(self,materials):
 		all_chunks,all_meta=[],[]

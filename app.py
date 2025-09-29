@@ -4,6 +4,13 @@ from werkzeug.utils import secure_filename
 from db import init_db,verify_user,add_material,log_qa,get_materials,add_user,delete_user,get_all_users,log_quiz_result,get_qa_logs,get_quiz_results,export_quiz_csv,get_subjects,get_user_subjects,assign_user_subject,remove_user_subject,create_quiz,assign_quiz_to_students,get_teacher_quizzes,get_student_quizzes,get_quiz_by_id,update_quiz_score,get_db_connection,get_non_indexed_materials,update_material_indexed_status
 from auth import login_required,admin_required,teacher_required,login_user,logout_user,get_current_user
 from rag import SmartStudyRAG
+from PIL import Image
+import pytesseract
+import cv2
+import numpy as np
+import speech_recognition as sr
+import io
+import base64
 
 app=Flask(__name__)
 app.secret_key='IB-Smartportal'
@@ -53,12 +60,9 @@ def logout():
 	return redirect(url_for('login'))
 
 @app.route('/upload',methods=['GET','POST'])
-@login_required
+@teacher_required
 def upload():
 	user=get_current_user()
-	if user['role']=='student':
-		flash('Students cannot upload files. Only teachers and admins can upload materials.','error')
-		return redirect(url_for('index'))
 	global rag_system
 	init_rag_system()
 	if request.method=='POST':
@@ -118,12 +122,9 @@ def upload():
 	return render_template('index.html',materials=materials,subjects=subjects)
 
 @app.route('/reindex',methods=['POST'])
-@login_required
+@teacher_required
 def reindex_files():
 	user=get_current_user()
-	if user['role']=='student':
-		flash('Students cannot re-index files. Only teachers and admins can manage materials.','error')
-		return redirect(url_for('index'))
 	global rag_system
 	try:
 		init_rag_system()
@@ -267,7 +268,7 @@ def create_quiz_route():
 			if quiz_questions:
 				quiz_id=create_quiz(title,subject_id,session['user_id'],quiz_questions)
 				flash(f'Quiz "{title}" created successfully!','success')
-				return redirect(url_for('assign_quiz',quiz_id=quiz_id))
+				return redirect(url_for('quiz_editor',quiz_id=quiz_id))
 			else:flash('Failed to generate quiz questions.','error')
 		except Exception as e:flash(f'Error creating quiz: {str(e)}','error')
 	teacher_subjects=get_user_subjects(session['user_id'])
@@ -351,7 +352,7 @@ def dashboard():
 		flash('Access denied.','error')
 		return redirect(url_for('index'))
 	user_distribution,performance_data,subject_activity,time_series_data,score_distribution=get_user_distribution(),get_performance_data(),get_subject_activity(),get_time_series_data(),get_score_distribution()
-	return render_template('dashboard.html',stats=stats,recent_activities=recent_activities,user_distribution=user_distribution,performance_data=performance_data,subject_activity=subject_activity,time_series_data=time_series_data,score_distribution=score_distribution)
+	return render_template('dashboard.html',user=user,stats=stats,recent_activities=recent_activities,user_distribution=user_distribution,performance_data=performance_data,subject_activity=subject_activity,time_series_data=time_series_data,score_distribution=score_distribution)
 
 @app.route('/profile')
 @login_required
@@ -436,6 +437,162 @@ def delete_subject(subject_id):
 	conn.close()
 	flash('Subject deleted successfully!','success')
 	return redirect(url_for('manage_subjects'))
+
+# Quiz Editor Routes
+@app.route('/quiz_editor/<int:quiz_id>')
+@teacher_required
+def quiz_editor(quiz_id):
+	quiz=get_quiz_by_id(quiz_id)
+	if not quiz or quiz['teacher_id']!=session['user_id']:
+		flash('Quiz not found.','error')
+		return redirect(url_for('my_quizzes'))
+	try:
+		questions=json.loads(quiz['questions']) if isinstance(quiz['questions'],str) else quiz['questions']
+	except (TypeError,json.JSONDecodeError):
+		questions=quiz['questions']
+	return render_template('quiz_editor.html',quiz=quiz,questions=questions)
+
+@app.route('/update_quiz_questions/<int:quiz_id>',methods=['POST'])
+@teacher_required
+def update_quiz_questions(quiz_id):
+	quiz=get_quiz_by_id(quiz_id)
+	if not quiz or quiz['teacher_id']!=session['user_id']:
+		return jsonify({'success':False,'error':'Quiz not found'})
+	try:
+		questions=request.json.get('questions',[])
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('UPDATE quizzes SET questions = ? WHERE id = ?',(json.dumps(questions),quiz_id))
+		conn.commit()
+		conn.close()
+		return jsonify({'success':True})
+	except Exception as e:
+		return jsonify({'success':False,'error':str(e)})
+
+@app.route('/regenerate_quiz/<int:quiz_id>')
+@teacher_required
+def regenerate_quiz(quiz_id):
+	quiz=get_quiz_by_id(quiz_id)
+	if not quiz or quiz['teacher_id']!=session['user_id']:
+		flash('Quiz not found.','error')
+		return redirect(url_for('my_quizzes'))
+	try:
+		init_rag_system()
+		quiz_questions=rag_system.generate_quiz(5,quiz['description'],quiz['subject_id'])
+		if quiz_questions:
+			conn=get_db_connection()
+			cursor=conn.cursor()
+			cursor.execute('UPDATE quizzes SET questions = ? WHERE id = ?',(json.dumps(quiz_questions),quiz_id))
+			conn.commit()
+			conn.close()
+			flash('Quiz regenerated successfully!','success')
+		else:flash('Failed to regenerate quiz questions.','error')
+	except Exception as e:flash(f'Error regenerating quiz: {str(e)}','error')
+	return redirect(url_for('quiz_editor',quiz_id=quiz_id))
+
+# Notes System Routes
+@app.route('/notes')
+@login_required
+def notes():
+	user=get_current_user()
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('SELECT * FROM notes WHERE user_id = ? ORDER BY created_at DESC',(user['id'],))
+	notes=[{'id':row[0],'title':row[2],'content':row[3],'subject_id':row[4],'created_at':row[5]} for row in cursor.fetchall()]
+	user_subjects=get_user_subjects(user['id'])
+	conn.close()
+	return render_template('notes.html',notes=notes,subjects=user_subjects)
+
+@app.route('/create_note',methods=['POST'])
+@login_required
+def create_note():
+	user=get_current_user()
+	title,content,subject_id=request.json.get('title',''),request.json.get('content',''),request.json.get('subject_id')
+	if not title or not content:
+		return jsonify({'success':False,'error':'Title and content are required'})
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('INSERT INTO notes (user_id, title, content, subject_id) VALUES (?, ?, ?, ?)',(user['id'],title,content,subject_id))
+		conn.commit()
+		conn.close()
+		return jsonify({'success':True})
+	except Exception as e:
+		return jsonify({'success':False,'error':str(e)})
+
+@app.route('/update_note/<int:note_id>',methods=['PUT'])
+@login_required
+def update_note(note_id):
+	user=get_current_user()
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('SELECT user_id FROM notes WHERE id = ?',(note_id,))
+	note=cursor.fetchone()
+	if not note or note[0]!=user['id']:
+		return jsonify({'success':False,'error':'Note not found'})
+	title,content,subject_id=request.json.get('title',''),request.json.get('content',''),request.json.get('subject_id')
+	if not title or not content:
+		return jsonify({'success':False,'error':'Title and content are required'})
+	try:
+		cursor.execute('UPDATE notes SET title = ?, content = ?, subject_id = ? WHERE id = ?',(title,content,subject_id,note_id))
+		conn.commit()
+		conn.close()
+		return jsonify({'success':True})
+	except Exception as e:
+		return jsonify({'success':False,'error':str(e)})
+
+@app.route('/delete_note/<int:note_id>',methods=['DELETE'])
+@login_required
+def delete_note(note_id):
+	user=get_current_user()
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('SELECT user_id FROM notes WHERE id = ?',(note_id,))
+	note=cursor.fetchone()
+	if not note or note[0]!=user['id']:
+		return jsonify({'success':False,'error':'Note not found'})
+	try:
+		cursor.execute('DELETE FROM notes WHERE id = ?',(note_id,))
+		conn.commit()
+		conn.close()
+		return jsonify({'success':True})
+	except Exception as e:
+		return jsonify({'success':False,'error':str(e)})
+
+@app.route('/extract_text_from_image',methods=['POST'])
+@login_required
+def extract_text_from_image():
+	if 'image' not in request.files:
+		return jsonify({'success':False,'error':'No image file provided'})
+	file=request.files['image']
+	if file.filename=='':
+		return jsonify({'success':False,'error':'No image file selected'})
+	try:
+		image=Image.open(file.stream)
+		image_array=np.array(image)
+		if len(image_array.shape)==3:
+			image_array=cv2.cvtColor(image_array,cv2.COLOR_RGB2GRAY)
+		text=pytesseract.image_to_string(image_array)
+		return jsonify({'success':True,'extracted_text':text.strip()})
+	except Exception as e:
+		return jsonify({'success':False,'error':str(e)})
+
+@app.route('/voice_to_text',methods=['POST'])
+@login_required
+def voice_to_text():
+	if 'audio' not in request.files:
+		return jsonify({'success':False,'error':'No audio file provided'})
+	file=request.files['audio']
+	if file.filename=='':
+		return jsonify({'success':False,'error':'No audio file selected'})
+	try:
+		r=sr.Recognizer()
+		with sr.AudioFile(file) as source:
+			audio=r.record(source)
+		text=r.recognize_google(audio)
+		return jsonify({'success':True,'text':text})
+	except Exception as e:
+		return jsonify({'success':False,'error':str(e)})
 
 def get_admin_stats():
 	conn=get_db_connection()

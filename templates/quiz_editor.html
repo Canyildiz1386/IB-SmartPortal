@@ -1,0 +1,430 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz Editor - {{ quiz.title }}{% endblock %}
+
+{% block content %}
+<div style="max-width: 1200px; margin: 0 auto; padding: 24px;">
+    <div style="background: white; padding: 32px; margin-bottom: 24px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+            <div>
+                <h1 style="margin: 0; font-size: 28px; font-weight: 600; color: #202124;">{{ quiz.title }}</h1>
+                <p style="margin: 8px 0 0 0; color: #5f6368; font-size: 16px;">Subject: {{ quiz.subject_name }}</p>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button onclick="saveQuiz()" class="google-button">
+                    <span class="material-icons" style="font-size: 18px; margin-right: 8px;">save</span>
+                    Save Quiz
+                </button>
+                <a href="{{ url_for('assign_quiz', quiz_id=quiz.id) }}" class="google-button" style="background: #34a853; text-decoration: none;">
+                    <span class="material-icons" style="font-size: 18px; margin-right: 8px;">send</span>
+                    Assign to Students
+                </a>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 16px; align-items: center;">
+            <button onclick="addQuestion()" class="google-button secondary">
+                <span class="material-icons" style="font-size: 18px; margin-right: 8px;">add</span>
+                Add Question
+            </button>
+            <button onclick="regenerateQuestions()" class="google-button secondary">
+                <span class="material-icons" style="font-size: 18px; margin-right: 8px;">refresh</span>
+                Regenerate All
+            </button>
+            <div style="margin-left: auto; color: #5f6368; font-size: 14px; font-weight: 500;">
+                <span id="questionCount">{{ questions|length }}</span> questions
+            </div>
+        </div>
+    </div>
+
+    <div id="questionsContainer">
+        {% for question in questions %}
+        <div class="google-card question-item" data-question-id="{{ loop.index0 }}" style="padding: 24px; margin-bottom: 16px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="background: #1a73e8; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">
+                            Question {{ loop.index }}
+                        </span>
+                        <span style="color: #5f6368; font-size: 12px;">Type: {{ question.type|title }}</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Question:</label>
+                        <textarea class="google-input question-text" rows="3" placeholder="Enter your question here...">{{ question.question }}</textarea>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Options:</label>
+                        <div id="options-{{ loop.index0 }}">
+                            {% for option in question.options %}
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <input type="radio" name="correct-{{ loop.index0 }}" value="{{ loop.index0 }}" 
+                                       {% if loop.index0 == question.correct %}checked{% endif %}
+                                       style="margin: 0;">
+                                <input type="text" class="google-input option-input" value="{{ option }}" 
+                                       style="flex: 1; margin: 0;" placeholder="Option {{ loop.index }}">
+                                <button onclick="removeOption(this)" class="google-button secondary" style="padding: 6px 8px; min-width: auto;">
+                                    <span class="material-icons" style="font-size: 16px;">close</span>
+                                </button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button onclick="addOption({{ loop.index0 }})" class="google-button secondary" style="margin-top: 8px;">
+                            <span class="material-icons" style="font-size: 18px; margin-right: 8px;">add</span>
+                            Add Option
+                        </button>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Explanation (Optional):</label>
+                        <textarea class="google-input explanation" rows="2" placeholder="Add explanation for this question...">{{ question.explanation or '' }}</textarea>
+                    </div>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-left: 16px;">
+                    <button onclick="moveQuestion({{ loop.index0 }}, 'up')" class="google-button secondary" style="padding: 8px;">
+                        <span class="material-icons" style="font-size: 18px;">keyboard_arrow_up</span>
+                    </button>
+                    <button onclick="moveQuestion({{ loop.index0 }}, 'down')" class="google-button secondary" style="padding: 8px;">
+                        <span class="material-icons" style="font-size: 18px;">keyboard_arrow_down</span>
+                    </button>
+                    <button onclick="duplicateQuestion({{ loop.index0 }})" class="google-button secondary" style="padding: 8px;">
+                        <span class="material-icons" style="font-size: 18px;">content_copy</span>
+                    </button>
+                    <button onclick="deleteQuestion({{ loop.index0 }})" class="google-button" style="background: #ea4335; padding: 8px;">
+                        <span class="material-icons" style="font-size: 18px;">delete</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if not questions %}
+    <div style="background: white; padding: 48px; text-align: center; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <div style="width: 64px; height: 64px; background: #f8f9fa; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; border: 1px solid #dadce0;">
+            <span class="material-icons" style="font-size: 32px; color: #5f6368;">quiz</span>
+        </div>
+        <h3 style="margin: 0 0 8px 0; color: #5f6368; font-size: 18px; font-weight: 500;">No questions yet</h3>
+        <p style="margin: 0; color: #5f6368; font-size: 14px;">Click "Add Question" to create your first question</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Question Modal -->
+<div id="addQuestionModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 600px; box-shadow: 0 4px 24px rgba(0,0,0,0.15);">
+        <h3 style="margin: 0 0 20px 0; font-size: 20px; font-weight: 600;">Add New Question</h3>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Question Type:</label>
+            <select id="questionType" class="google-input">
+                <option value="multiple_choice">Multiple Choice</option>
+                <option value="true_false">True/False</option>
+                <option value="short_answer">Short Answer</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Question:</label>
+            <textarea id="newQuestionText" class="google-input" rows="3" placeholder="Enter your question..."></textarea>
+        </div>
+
+        <div id="optionsSection" style="margin-bottom: 16px;">
+            <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Options:</label>
+            <div id="newOptions">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <input type="radio" name="newCorrect" value="0" checked>
+                    <input type="text" class="google-input" placeholder="Option 1" style="flex: 1;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <input type="radio" name="newCorrect" value="1">
+                    <input type="text" class="google-input" placeholder="Option 2" style="flex: 1;">
+                </div>
+            </div>
+            <button onclick="addNewOption()" class="google-button secondary" style="margin-top: 8px;">
+                <span class="material-icons" style="font-size: 18px; margin-right: 8px;">add</span>
+                Add Option
+            </button>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button onclick="closeAddQuestionModal()" class="google-button secondary">Cancel</button>
+            <button onclick="confirmAddQuestion()" class="google-button">Add Question</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let questions = {{ questions|tojson }};
+let questionCounter = questions.length;
+
+function addQuestion() {
+    document.getElementById('addQuestionModal').style.display = 'block';
+}
+
+function closeAddQuestionModal() {
+    document.getElementById('addQuestionModal').style.display = 'none';
+    document.getElementById('newQuestionText').value = '';
+    document.getElementById('newOptions').innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <input type="radio" name="newCorrect" value="0" checked>
+            <input type="text" class="google-input" placeholder="Option 1" style="flex: 1;">
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <input type="radio" name="newCorrect" value="1">
+            <input type="text" class="google-input" placeholder="Option 2" style="flex: 1;">
+        </div>
+    `;
+}
+
+function addNewOption() {
+    const optionsContainer = document.getElementById('newOptions');
+    const optionIndex = optionsContainer.children.length;
+    const optionDiv = document.createElement('div');
+    optionDiv.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 8px;';
+    optionDiv.innerHTML = `
+        <input type="radio" name="newCorrect" value="${optionIndex}">
+        <input type="text" class="google-input" placeholder="Option ${optionIndex + 1}" style="flex: 1;">
+        <button onclick="removeNewOption(this)" class="google-button secondary" style="padding: 6px 8px; min-width: auto;">
+            <span class="material-icons" style="font-size: 16px;">close</span>
+        </button>
+    `;
+    optionsContainer.appendChild(optionDiv);
+}
+
+function removeNewOption(button) {
+    button.parentElement.remove();
+}
+
+function confirmAddQuestion() {
+    const questionText = document.getElementById('newQuestionText').value.trim();
+    const questionType = document.getElementById('questionType').value;
+    
+    if (!questionText) {
+        alert('Please enter a question');
+        return;
+    }
+
+    let options = [];
+    let correct = 0;
+    
+    if (questionType !== 'short_answer') {
+        const optionInputs = document.querySelectorAll('#newOptions input[type="text"]');
+        const correctRadio = document.querySelector('input[name="newCorrect"]:checked');
+        
+        optionInputs.forEach((input, index) => {
+            if (input.value.trim()) {
+                options.push(input.value.trim());
+            }
+        });
+        
+        if (correctRadio) {
+            correct = parseInt(correctRadio.value);
+        }
+        
+        if (options.length < 2) {
+            alert('Please add at least 2 options');
+            return;
+        }
+    }
+
+    const newQuestion = {
+        question: questionText,
+        type: questionType,
+        options: options,
+        correct: correct,
+        explanation: ''
+    };
+
+    questions.push(newQuestion);
+    renderQuestions();
+    closeAddQuestionModal();
+    updateQuestionCount();
+}
+
+function addOption(questionIndex) {
+    const optionsContainer = document.getElementById(`options-${questionIndex}`);
+    const optionIndex = optionsContainer.children.length;
+    const optionDiv = document.createElement('div');
+    optionDiv.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 8px;';
+    optionDiv.innerHTML = `
+        <input type="radio" name="correct-${questionIndex}" value="${optionIndex}">
+        <input type="text" class="google-input option-input" placeholder="Option ${optionIndex + 1}" style="flex: 1; margin: 0;">
+        <button onclick="removeOption(this)" class="google-button secondary" style="padding: 6px 8px; min-width: auto;">
+            <span class="material-icons" style="font-size: 16px;">close</span>
+        </button>
+    `;
+    optionsContainer.appendChild(optionDiv);
+}
+
+function removeOption(button) {
+    button.parentElement.remove();
+}
+
+function deleteQuestion(questionIndex) {
+    if (confirm('Are you sure you want to delete this question?')) {
+        questions.splice(questionIndex, 1);
+        renderQuestions();
+        updateQuestionCount();
+    }
+}
+
+function duplicateQuestion(questionIndex) {
+    const question = JSON.parse(JSON.stringify(questions[questionIndex]));
+    question.question += ' (Copy)';
+    questions.splice(questionIndex + 1, 0, question);
+    renderQuestions();
+    updateQuestionCount();
+}
+
+function moveQuestion(questionIndex, direction) {
+    const newIndex = direction === 'up' ? questionIndex - 1 : questionIndex + 1;
+    if (newIndex >= 0 && newIndex < questions.length) {
+        const question = questions.splice(questionIndex, 1)[0];
+        questions.splice(newIndex, 0, question);
+        renderQuestions();
+    }
+}
+
+function regenerateQuestions() {
+    if (confirm('This will regenerate all questions. Are you sure?')) {
+        window.location.href = '{{ url_for("regenerate_quiz", quiz_id=quiz.id) }}';
+    }
+}
+
+function saveQuiz() {
+    const questionElements = document.querySelectorAll('.question-item');
+    const updatedQuestions = [];
+    
+    questionElements.forEach((element, index) => {
+        const questionText = element.querySelector('.question-text').value;
+        const explanation = element.querySelector('.explanation').value;
+        const options = [];
+        let correct = 0;
+        
+        const optionInputs = element.querySelectorAll('.option-input');
+        const correctRadio = element.querySelector('input[name^="correct"]:checked');
+        
+        optionInputs.forEach((input, optionIndex) => {
+            if (input.value.trim()) {
+                options.push(input.value.trim());
+            }
+        });
+        
+        if (correctRadio) {
+            correct = parseInt(correctRadio.value);
+        }
+        
+        updatedQuestions.push({
+            question: questionText,
+            type: 'multiple_choice',
+            options: options,
+            correct: correct,
+            explanation: explanation
+        });
+    });
+    
+    fetch('{{ url_for("update_quiz_questions", quiz_id=quiz.id) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            questions: updatedQuestions
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Quiz saved successfully!');
+        } else {
+            alert('Error saving quiz: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error saving quiz: ' + error);
+    });
+}
+
+function renderQuestions() {
+    const container = document.getElementById('questionsContainer');
+    container.innerHTML = '';
+    
+    questions.forEach((question, index) => {
+        const questionDiv = document.createElement('div');
+        questionDiv.className = 'google-card question-item';
+        questionDiv.style.cssText = 'padding: 24px; margin-bottom: 16px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
+        questionDiv.setAttribute('data-question-id', index);
+        
+        questionDiv.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="background: #1a73e8; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">
+                            Question ${index + 1}
+                        </span>
+                        <span style="color: #5f6368; font-size: 12px;">Type: ${question.type.charAt(0).toUpperCase() + question.type.slice(1)}</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Question:</label>
+                        <textarea class="google-input question-text" rows="3" placeholder="Enter your question here...">${question.question}</textarea>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Options:</label>
+                        <div id="options-${index}">
+                            ${question.options.map((option, optionIndex) => `
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                    <input type="radio" name="correct-${index}" value="${optionIndex}" ${optionIndex === question.correct ? 'checked' : ''}>
+                                    <input type="text" class="google-input option-input" value="${option}" style="flex: 1; margin: 0;" placeholder="Option ${optionIndex + 1}">
+                                    <button onclick="removeOption(this)" class="google-button secondary" style="padding: 6px 8px; min-width: auto;">
+                                        <span class="material-icons" style="font-size: 16px;">close</span>
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button onclick="addOption(${index})" class="google-button secondary" style="margin-top: 8px;">
+                            <span class="material-icons" style="font-size: 18px; margin-right: 8px;">add</span>
+                            Add Option
+                        </button>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Explanation (Optional):</label>
+                        <textarea class="google-input explanation" rows="2" placeholder="Add explanation for this question...">${question.explanation || ''}</textarea>
+                    </div>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-left: 16px;">
+                    <button onclick="moveQuestion(${index}, 'up')" class="google-button secondary" style="padding: 8px;">
+                        <span class="material-icons" style="font-size: 18px;">keyboard_arrow_up</span>
+                    </button>
+                    <button onclick="moveQuestion(${index}, 'down')" class="google-button secondary" style="padding: 8px;">
+                        <span class="material-icons" style="font-size: 18px;">keyboard_arrow_down</span>
+                    </button>
+                    <button onclick="duplicateQuestion(${index})" class="google-button secondary" style="padding: 8px;">
+                        <span class="material-icons" style="font-size: 18px;">content_copy</span>
+                    </button>
+                    <button onclick="deleteQuestion(${index})" class="google-button" style="background: #ea4335; padding: 8px;">
+                        <span class="material-icons" style="font-size: 18px;">delete</span>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(questionDiv);
+    });
+}
+
+function updateQuestionCount() {
+    document.getElementById('questionCount').textContent = questions.length;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    updateQuestionCount();
+});
+</script>
+{% endblock %}

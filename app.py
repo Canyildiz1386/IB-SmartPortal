@@ -693,5 +693,5 @@ def get_score_distribution():
 if __name__=='__main__':
 	init_db()
 	init_rag_system()
-	port=int(os.environ.get('PORT',5001))
+	port=int(os.environ.get('PORT',2121))
 	app.run(debug=False,host='0.0.0.0',port=port)

@@ -552,7 +552,7 @@ def change_password():
 		return redirect(url_for('profile'))
 	conn=get_db_connection()
 	cursor=conn.cursor()
-	cursor.execute('UPDATE users SET password = ? WHERE id = ?',(hashlib.sha256(new_password.encode()).hexdigest(),user['id']))
+	cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?',(hashlib.sha256(new_password.encode()).hexdigest(),user['id']))
 	conn.commit()
 	conn.close()
 	flash('Password changed successfully!','success')

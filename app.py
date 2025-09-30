@@ -725,6 +725,21 @@ def update_note(note_id):
 	except Exception as e:
 		return jsonify({'success':False,'error':str(e)})
 
+@app.route('/get_note/<int:note_id>',methods=['GET'])
+@login_required
+def get_note(note_id):
+	user=get_current_user()
+	if user['role']=='admin':
+		return jsonify({'success':False,'error':'Admins do not have access to notes'})
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('SELECT id, user_id, title, content, subject_id FROM notes WHERE id = ?',(note_id,))
+	note=cursor.fetchone()
+	conn.close()
+	if not note or note[1]!=user['id']:
+		return jsonify({'success':False,'error':'Note not found'})
+	return jsonify({'success':True,'note':{'id':note[0],'title':note[2],'content':note[3],'subject_id':note[4]}})
+
 @app.route('/delete_note/<int:note_id>',methods=['DELETE'])
 @login_required
 def delete_note(note_id):

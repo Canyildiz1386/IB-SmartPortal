@@ -7,6 +7,5 @@ numpy
 werkzeug
 Pillow
 pytesseract
-speech_recognition
 pyaudio
 opencv-python

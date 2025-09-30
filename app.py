@@ -8,7 +8,6 @@ from PIL import Image
 import pytesseract
 import cv2
 import numpy as np
-import speech_recognition as sr
 import io
 import base64
 
@@ -764,22 +763,7 @@ def extract_text_from_image():
 	except Exception as e:
 		return jsonify({'success':False,'error':str(e)})
 
-@app.route('/voice_to_text',methods=['POST'])
-@login_required
-def voice_to_text():
-	if 'audio' not in request.files:
-		return jsonify({'success':False,'error':'No audio file provided'})
-	file=request.files['audio']
-	if file.filename=='':
-		return jsonify({'success':False,'error':'No audio file selected'})
-	try:
-		r=sr.Recognizer()
-		with sr.AudioFile(file) as source:
-			audio=r.record(source)
-		text=r.recognize_google(audio)
-		return jsonify({'success':True,'text':text})
-	except Exception as e:
-		return jsonify({'success':False,'error':str(e)})
+
 
 def get_admin_stats():
 	conn=get_db_connection()

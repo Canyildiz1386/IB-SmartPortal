@@ -1,40 +1,211 @@
 {% extends "base.html" %}
 
 {% block title %}Quiz Results{% endblock %}
+{% block page_title %}Quiz Results{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <h1 class="text-3xl font-bold mb-8 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Quiz Results</h1>
-    
-    <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700 mb-6">
-        <h2 class="text-2xl font-semibold mb-6 text-white">{{ quiz.title }}</h2>
+<div style="max-width: 900px; margin: 0 auto; padding: 24px;">
+    <!-- Results Card -->
+    <div style="background: white; padding: 48px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; margin-bottom: 32px;">
+        <div style="width: 80px; height: 80px; background: {% if percentage >= 80 %}#34a853{% elif percentage >= 60 %}#fbbc04{% else %}#ea4335{% endif %}; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; box-shadow: 0 8px 24px {% if percentage >= 80 %}rgba(52, 168, 83, 0.3){% elif percentage >= 60 %}rgba(251, 188, 4, 0.3){% else %}rgba(234, 67, 53, 0.3){% endif %};">
+            <span class="material-icons" style="font-size: 48px; color: white;">
+                {% if percentage >= 80 %}emoji_events{% elif percentage >= 60 %}thumb_up{% else %}school{% endif %}
+            </span>
+        </div>
         
-        <div class="text-center">
-            <div class="text-6xl font-bold mb-4 {% if percentage >= 80 %}text-green-400{% elif percentage >= 60 %}text-yellow-400{% else %}text-red-400{% endif %}">
+        <h1 style="margin: 0 0 12px 0; font-size: 28px; font-weight: 600; color: #202124;" class="markdown-content">{{ quiz.title }}</h1>
+        <p style="margin: 0 0 32px 0; color: #5f6368; font-size: 16px;">Quiz Completed!</p>
+        
+        <div style="margin-bottom: 32px;">
+            <div style="font-size: 72px; font-weight: 700; color: {% if percentage >= 80 %}#34a853{% elif percentage >= 60 %}#fbbc04{% else %}#ea4335{% endif %}; margin-bottom: 12px;">
                 {{ percentage }}%
             </div>
-            <div class="text-2xl text-gray-300 mb-6">{{ score }}/{{ total }} correct</div>
+            <div style="font-size: 24px; color: #5f6368; font-weight: 500; margin-bottom: 24px;">
+                {{ correct }} out of {{ total }} correct
+            </div>
+        </div>
             
             {% if percentage >= 80 %}
-                <div class="bg-green-600/20 border border-green-500/30 rounded-lg p-4">
-                    <p class="text-green-400 text-lg font-medium">Excellent work! 🎉</p>
+        <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border: 2px solid #34a853; border-radius: 12px; padding: 20px; margin-bottom: 32px;">
+            <p style="margin: 0; color: #1b5e20; font-size: 18px; font-weight: 600;">🎉 Excellent Work!</p>
+            <p style="margin: 8px 0 0 0; color: #2e7d32; font-size: 14px;">You've mastered this material!</p>
                 </div>
             {% elif percentage >= 60 %}
-                <div class="bg-yellow-600/20 border border-yellow-500/30 rounded-lg p-4">
-                    <p class="text-yellow-400 text-lg font-medium">Good job! Keep studying! 📚</p>
+        <div style="background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border: 2px solid #fbbc04; border-radius: 12px; padding: 20px; margin-bottom: 32px;">
+            <p style="margin: 0; color: #f57f17; font-size: 18px; font-weight: 600;">📚 Good Job!</p>
+            <p style="margin: 8px 0 0 0; color: #f9a825; font-size: 14px;">Keep studying to improve further!</p>
                 </div>
             {% else %}
-                <div class="bg-red-600/20 border border-red-500/30 rounded-lg p-4">
-                    <p class="text-red-400 text-lg font-medium">Keep studying! You can do better! 💪</p>
+        <div style="background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%); border: 2px solid #ea4335; border-radius: 12px; padding: 20px; margin-bottom: 32px;">
+            <p style="margin: 0; color: #c62828; font-size: 18px; font-weight: 600;">💪 Keep Practicing!</p>
+            <p style="margin: 8px 0 0 0; color: #d32f2f; font-size: 14px;">Review the material and try again!</p>
                 </div>
             {% endif %}
+        
+        <div style="display: flex; gap: 12px; justify-content: center;">
+            <a href="{{ url_for('student_quizzes') }}" class="google-button" style="text-decoration: none; padding: 14px 32px; font-size: 16px;">
+                <span class="material-icons" style="font-size: 20px; margin-right: 8px;">arrow_back</span>
+                Back to Quizzes
+            </a>
         </div>
     </div>
     
-    <div class="text-center">
-        <a href="{{ url_for('student_quizzes') }}" class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-3 rounded-lg font-medium transition-all transform hover:scale-105">
-            Back to My Quizzes
-        </a>
+    <!-- Detailed Results -->
+    {% if answers %}
+    <div style="background: white; padding: 32px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #202124;">Detailed Review</h2>
+        
+        {% for answer in answers %}
+        <div style="border: 1px solid #e8eaed; border-radius: 12px; padding: 24px; margin-bottom: 16px; {% if answer.is_correct %}background: #f1f8f4;{% else %}background: #fef7f7;{% endif %}">
+            <div style="display: flex; align-items: flex-start; gap: 16px;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; {% if answer.is_correct %}background: #34a853;{% else %}background: #ea4335;{% endif %}">
+                    <span class="material-icons" style="font-size: 24px; color: white;">
+                        {% if answer.is_correct %}check{% else %}close{% endif %}
+                    </span>
+                </div>
+                
+                <div style="flex: 1;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #202124;">
+                            Question {{ loop.index }}
+                        </h3>
+                    </div>
+                    
+                    <p style="margin: 0 0 16px 0; color: #202124; font-size: 15px; line-height: 1.5;" class="markdown-content">{{ answer.question }}</p>
+                    
+                    <!-- All Options -->
+                    {% if answer.options %}
+                    <div style="margin-bottom: 16px;">
+                        <p style="margin: 0 0 8px 0; font-weight: 600; color: #5f6368; font-size: 13px;">All Options:</p>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            {% for option in answer.options %}
+                            {% set letter = ['A', 'B', 'C', 'D', 'E', 'F'][loop.index0] %}
+                            {% set is_correct = letter == answer.correct_answer %}
+                            {% set is_user_answer = letter == answer.user_answer %}
+                            <div style="padding: 10px 12px; border-radius: 8px; {% if is_correct %}background: #c8e6c9; border: 2px solid #81c784;{% elif is_user_answer %}background: #ffcdd2; border: 2px solid #e57373;{% else %}background: #f8f9fa; border: 1px solid #e8eaed;{% endif %}">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-weight: 700; color: #202124; font-size: 14px; min-width: 24px;">{{ letter }})</span>
+                                    <span style="color: #202124; font-size: 14px; flex: 1;" class="markdown-content">{{ option }}</span>
+                                    {% if is_correct %}
+                                        <span style="background: #34a853; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">✓ CORRECT</span>
+                                    {% endif %}
+                                    {% if is_user_answer and not is_correct %}
+                                        <span style="background: #ea4335; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">YOUR ANSWER</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <!-- Fallback if options not available -->
+                    <div style="display: grid; gap: 8px; margin-bottom: 16px;">
+                        <div style="padding: 10px 12px; border-radius: 8px; {% if answer.is_correct %}background: #c8e6c9; border: 1px solid #81c784;{% else %}background: #ffcdd2; border: 1px solid #e57373;{% endif %}">
+                            <span style="font-weight: 600; color: #202124; font-size: 13px;">Your Answer:</span>
+                            <span style="color: #202124; font-size: 14px; margin-left: 8px;">{{ answer.user_answer }}</span>
+                        </div>
+                        
+                        {% if not answer.is_correct %}
+                        <div style="padding: 10px 12px; border-radius: 8px; background: #c8e6c9; border: 1px solid #81c784;">
+                            <span style="font-weight: 600; color: #202124; font-size: 13px;">Correct Answer:</span>
+                            <span style="color: #202124; font-size: 14px; margin-left: 8px;">{{ answer.correct_answer }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- AI Explanation Button -->
+                    <button onclick="getExplanation({{ loop.index0 }}, '{{ answer.question|replace("'", "\\'") }}', {{ answer.options|tojson if answer.options else '[]' }}, '{{ answer.correct_answer }}', '{{ answer.user_answer }}')" 
+                            id="explain-btn-{{ loop.index0 }}"
+                            class="google-button secondary" 
+                            style="width: 100%; padding: 12px; font-size: 14px; margin-bottom: 8px;">
+                        <span class="material-icons" style="font-size: 18px; margin-right: 8px;">psychology</span>
+                        Get AI Explanation
+                    </button>
+                    
+                    <!-- Explanation Container -->
+                    <div id="explanation-{{ loop.index0 }}" style="display: none; margin-top: 12px; padding: 16px; background: #e8f5e9; border: 2px solid #81c784; border-radius: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                            <span class="material-icons" style="color: #2e7d32; font-size: 20px;">lightbulb</span>
+                            <span style="font-weight: 600; color: #1b5e20; font-size: 14px;">AI Explanation:</span>
+                        </div>
+                        <div id="explanation-content-{{ loop.index0 }}" style="color: #1b5e20; font-size: 14px; line-height: 1.6;" class="markdown-content"></div>
+                    </div>
+                    
+                    <!-- Loading Indicator -->
+                    <div id="explanation-loading-{{ loop.index0 }}" style="display: none; text-align: center; padding: 16px;">
+                        <div style="display: inline-block; width: 24px; height: 24px; border: 3px solid #f3f3f3; border-top: 3px solid #1a73e8; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                        <p style="margin: 8px 0 0 0; color: #5f6368; font-size: 13px;">Generating explanation...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
+    {% endif %}
 </div>
+
+<style>
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+
+<script>
+async function getExplanation(index, question, options, correctAnswer, userAnswer) {
+    const btn = document.getElementById(`explain-btn-${index}`);
+    const loading = document.getElementById(`explanation-loading-${index}`);
+    const explanationDiv = document.getElementById(`explanation-${index}`);
+    const contentDiv = document.getElementById(`explanation-content-${index}`);
+    
+    // Toggle if already shown
+    if (explanationDiv.style.display === 'block') {
+        explanationDiv.style.display = 'none';
+        btn.innerHTML = '<span class="material-icons" style="font-size: 18px; margin-right: 8px;">psychology</span>Get AI Explanation';
+        return;
+    }
+    
+    // Show loading
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons" style="font-size: 18px; margin-right: 8px;">hourglass_empty</span>Loading...';
+    loading.style.display = 'block';
+    
+    try {
+        const response = await fetch('{{ url_for("explain_question") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                question: question,
+                options: options,
+                correct_answer: correctAnswer,
+                user_answer: userAnswer
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            contentDiv.textContent = data.explanation;
+            // Render markdown
+            if (typeof marked !== 'undefined') {
+                contentDiv.innerHTML = marked.parse(data.explanation);
+            }
+            explanationDiv.style.display = 'block';
+            btn.innerHTML = '<span class="material-icons" style="font-size: 18px; margin-right: 8px;">visibility_off</span>Hide Explanation';
+        } else {
+            alert('Error: ' + data.error);
+            btn.innerHTML = '<span class="material-icons" style="font-size: 18px; margin-right: 8px;">psychology</span>Get AI Explanation';
+        }
+    } catch (error) {
+        alert('Error generating explanation: ' + error);
+        btn.innerHTML = '<span class="material-icons" style="font-size: 18px; margin-right: 8px;">psychology</span>Get AI Explanation';
+    } finally {
+        loading.style.display = 'none';
+        btn.disabled = false;
+    }
+}
+</script>
 {% endblock %}

@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
         window.MathJax = {
             tex: {
@@ -15,6 +16,33 @@
                 displayMath: [['$$', '$$'], ['\\[', '\\]']]
             }
         };
+        
+        // Configure marked for safe markdown rendering
+        if (typeof marked !== 'undefined') {
+            marked.setOptions({
+                breaks: true,
+                gfm: true,
+                headerIds: false,
+                mangle: false
+            });
+        }
+        
+        // Function to render markdown in all elements with class 'markdown-content'
+        function renderMarkdown() {
+            if (typeof marked !== 'undefined') {
+                document.querySelectorAll('.markdown-content').forEach(element => {
+                    const markdownText = element.textContent;
+                    element.innerHTML = marked.parse(markdownText);
+                    // Re-render math if MathJax is available
+                    if (window.MathJax && window.MathJax.typesetPromise) {
+                        window.MathJax.typesetPromise([element]);
+                    }
+                });
+            }
+        }
+        
+        // Render markdown when page loads
+        document.addEventListener('DOMContentLoaded', renderMarkdown);
     </script>
     <style>
         * {
@@ -387,6 +415,120 @@
             width: 300px;
             height: 300px;
         }
+        
+        /* Markdown Content Styles */
+        .markdown-content {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .markdown-content * {
+            margin: 0;
+            padding: 0;
+        }
+        
+        .markdown-content h1 {
+            font-size: 1.8em;
+            font-weight: 600;
+            margin: 0.5em 0;
+            color: #202124;
+        }
+        
+        .markdown-content h2 {
+            font-size: 1.5em;
+            font-weight: 600;
+            margin: 0.5em 0;
+            color: #202124;
+        }
+        
+        .markdown-content h3 {
+            font-size: 1.25em;
+            font-weight: 600;
+            margin: 0.5em 0;
+            color: #202124;
+        }
+        
+        .markdown-content p {
+            margin: 0;
+            line-height: 1.6;
+            display: inline;
+        }
+        
+        .markdown-content code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #d32f2f;
+        }
+        
+        .markdown-content pre {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid #e8eaed;
+        }
+        
+        .markdown-content pre code {
+            background: none;
+            padding: 0;
+            color: #202124;
+        }
+        
+        .markdown-content ul, .markdown-content ol {
+            margin: 0.5em 0;
+            padding-left: 1.5em;
+        }
+        
+        .markdown-content li {
+            margin: 0.25em 0;
+        }
+        
+        .markdown-content strong {
+            font-weight: 600;
+            color: #202124;
+        }
+        
+        .markdown-content em {
+            font-style: italic;
+        }
+        
+        .markdown-content blockquote {
+            border-left: 4px solid #1a73e8;
+            margin: 1em 0;
+            padding-left: 1em;
+            color: #5f6368;
+            font-style: italic;
+        }
+        
+        .markdown-content a {
+            color: #1a73e8;
+            text-decoration: none;
+        }
+        
+        .markdown-content a:hover {
+            text-decoration: underline;
+        }
+        
+        .markdown-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1em 0;
+        }
+        
+        .markdown-content table th,
+        .markdown-content table td {
+            border: 1px solid #e8eaed;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        
+        .markdown-content table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -404,10 +546,18 @@
             <div class="sidebar-nav">
                 {% if session.user_id %}
                     <!-- Dashboard -->
-                    {% if session.role in ['admin', 'teacher'] %}
+                    {% if session.role == 'admin' %}
                     <div class="nav-section">
                         <div class="nav-section-title">Overview</div>
-                        <a href="{{ url_for('dashboard') }}" class="nav-item">
+                        <a href="{{ url_for('admin_dashboard') }}" class="nav-item">
+                            <span class="material-icons nav-item-icon">dashboard</span>
+                            Dashboard
+                        </a>
+                    </div>
+                    {% elif session.role == 'teacher' %}
+                    <div class="nav-section">
+                        <div class="nav-section-title">Overview</div>
+                        <a href="{{ url_for('teacher_dashboard') }}" class="nav-item">
                             <span class="material-icons nav-item-icon">dashboard</span>
                             Dashboard
                         </a>
@@ -415,9 +565,10 @@
                     {% endif %}
                     
                     <!-- Main Features -->
+                    {% if session.role != 'admin' %}
                     <div class="nav-section">
                         <div class="nav-section-title">Main Features</div>
-                        {% if session.role != 'student' %}
+                        {% if session.role == 'teacher' %}
                         <a href="{{ url_for('upload') }}" class="nav-item">
                             <span class="material-icons nav-item-icon">cloud_upload</span>
                             Upload Materials
@@ -432,6 +583,7 @@
                             Notes
                         </a>
                     </div>
+                    {% endif %}
                     
                     <!-- Quizzes -->
                     <div class="nav-section">
@@ -453,34 +605,35 @@
                         {% endif %}
                     </div>
                     
-                    <!-- Subjects -->
+                    <!-- Subjects - View only, admins assign them -->
+                    {% if session.role in ['student', 'teacher'] %}
                     <div class="nav-section">
                         <div class="nav-section-title">Subjects</div>
-                        {% if session.role == 'admin' %}
-                        <a href="{{ url_for('manage_subjects') }}" class="nav-item">
-                            <span class="material-icons nav-item-icon">manage_accounts</span>
-                            Manage Subjects
-                        </a>
-                        {% else %}
                         <a href="{{ url_for('subjects') }}" class="nav-item">
                             <span class="material-icons nav-item-icon">subject</span>
                             My Subjects
                         </a>
-                        {% endif %}
                     </div>
+                    {% endif %}
                     
                     <!-- Admin & Analytics -->
                     {% if session.role in ['admin', 'teacher'] %}
                     <div class="nav-section">
-                        <div class="nav-section-title">Analytics</div>
+                        <div class="nav-section-title">{% if session.role == 'admin' %}Management{% else %}Analytics{% endif %}</div>
+                        {% if session.role == 'teacher' %}
                         <a href="{{ url_for('progress') }}" class="nav-item">
                             <span class="material-icons nav-item-icon">analytics</span>
                             Progress
                         </a>
+                        {% endif %}
                         {% if session.role == 'admin' %}
                         <a href="{{ url_for('admin') }}" class="nav-item">
-                            <span class="material-icons nav-item-icon">admin_panel_settings</span>
-                            Admin Panel
+                            <span class="material-icons nav-item-icon">people</span>
+                            Manage Users
+                        </a>
+                        <a href="{{ url_for('manage_subjects') }}" class="nav-item">
+                            <span class="material-icons nav-item-icon">subject</span>
+                            Manage Subjects
                         </a>
                         {% endif %}
                     </div>

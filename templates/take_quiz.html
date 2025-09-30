@@ -1,57 +1,97 @@
 {% extends "base.html" %}
 
-{% block title %}Take Quiz{% endblock %}
+{% block title %}Take Quiz - {{ quiz.title }}{% endblock %}
+{% block page_title %}Take Quiz{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <h1 class="text-3xl font-bold mb-8 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">{{ quiz.title }}</h1>
-    
-    <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700">
-        <form method="POST" class="space-y-8">
-            {% for question in questions %}
-                {% set outer_loop = loop %}
-                <div class="bg-gray-700/50 rounded-lg p-6">
-                    <h3 class="text-white font-medium mb-4">{{ loop.index }}. {{ question.question }}</h3>
-                    <div class="space-y-3">
-                        {% for option in question.options %}
-                            <label class="flex items-center p-3 bg-gray-600/50 rounded-lg hover:bg-gray-600 transition-colors cursor-pointer">
-                                <input type="radio" name="q{{ outer_loop.index0 }}" value="{{ ['A', 'B', 'C', 'D'][loop.index0] }}" class="mr-3 text-blue-600 focus:ring-blue-500">
-                                <span class="text-gray-200">{{ ['A', 'B', 'C', 'D'][loop.index0] }}) {{ option }}</span>
-                            </label>
-                        {% endfor %}
-                    </div>
+<div style="max-width: 900px; margin: 0 auto; padding: 24px;">
+    <!-- Quiz Header -->
+    <div style="background: white; padding: 32px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px;">
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+            <div style="width: 56px; height: 56px; background: #1a73e8; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                <span class="material-icons" style="font-size: 28px; color: white;">quiz</span>
+            </div>
+            <div style="flex: 1;">
+                <h1 style="margin: 0 0 4px 0; font-size: 24px; font-weight: 600; color: #202124;">{{ quiz.title }}</h1>
+                {% if quiz.difficulty %}
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+                    {% if quiz.difficulty == 'easy' %}
+                        <span style="padding: 4px 12px; border-radius: 12px; background: #e8f5e9; color: #2e7d32; font-size: 12px; font-weight: 600; border: 1px solid #81c784;">🟢 Easy Level</span>
+                    {% elif quiz.difficulty == 'hard' %}
+                        <span style="padding: 4px 12px; border-radius: 12px; background: #ffebee; color: #c62828; font-size: 12px; font-weight: 600; border: 1px solid #e57373;">🔴 Hard Level</span>
+                    {% else %}
+                        <span style="padding: 4px 12px; border-radius: 12px; background: #fff8e1; color: #f57f17; font-size: 12px; font-weight: 600; border: 1px solid #ffd54f;">🟡 Medium Level</span>
+                    {% endif %}
+                    <span style="color: #5f6368; font-size: 14px;">{{ questions|length }} questions</span>
                 </div>
-            {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+        
+        <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border: 1px solid #81c784; border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 12px;">
+            <span class="material-icons" style="color: #2e7d32; font-size: 20px;">info</span>
+            <div>
+                <p style="margin: 0; color: #1b5e20; font-size: 14px; font-weight: 500;">Answer all questions before submitting</p>
+                <p style="margin: 4px 0 0 0; color: #2e7d32; font-size: 12px;">Take your time and read each question carefully</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quiz Form -->
+    <form method="POST" id="quizForm">
+        {% for question in questions %}
+        {% set question_index = loop.index0 %}
+        <div style="background: white; padding: 28px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 16px;">
+            <div style="display: flex; align-items: flex-start; gap: 16px; margin-bottom: 20px;">
+                <div style="width: 36px; height: 36px; background: #1a73e8; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <span style="color: white; font-weight: 600; font-size: 16px;">{{ loop.index }}</span>
+                </div>
+                <h3 style="margin: 0; font-size: 16px; font-weight: 500; color: #202124; line-height: 1.5;" class="markdown-content">{{ question.question }}</h3>
+            </div>
             
-            <button type="submit" class="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-4 px-6 rounded-lg font-medium transition-all transform hover:scale-105 text-lg">
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-left: 52px;">
+                {% for option in question.options %}
+                <label style="display: flex; align-items: center; padding: 14px 16px; border-radius: 10px; border: 2px solid #e8eaed; background: #f8f9fa; cursor: pointer; transition: all 0.2s;" 
+                       onmouseover="this.style.background='#e8f0fe'; this.style.borderColor='#1a73e8';" 
+                       onmouseout="if(!this.querySelector('input').checked) { this.style.background='#f8f9fa'; this.style.borderColor='#e8eaed'; }"
+                       onclick="this.parentElement.querySelectorAll('label').forEach(l => { if(l !== this) { l.style.background='#f8f9fa'; l.style.borderColor='#e8eaed'; } }); this.style.background='#e8f0fe'; this.style.borderColor='#1a73e8';">
+                    <input type="radio" name="q{{ question_index }}" value="{{ ['A', 'B', 'C', 'D', 'E', 'F'][loop.index0] }}" required
+                           style="margin-right: 12px; width: 18px; height: 18px; cursor: pointer; flex-shrink: 0;">
+                    <span style="font-weight: 600; color: #5f6368; margin-right: 10px; font-size: 15px; flex-shrink: 0;">{{ ['A', 'B', 'C', 'D', 'E', 'F'][loop.index0] }})</span>
+                    <div style="color: #202124; font-size: 15px; flex: 1; line-height: 1.5;" class="markdown-content">{{ option }}</div>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+        
+        <!-- Submit Button -->
+        <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center;">
+            <button type="submit" class="google-button" style="width: 100%; padding: 16px; font-size: 18px; background: #34a853; max-width: 400px;">
+                <span class="material-icons" style="font-size: 24px; margin-right: 8px;">send</span>
                 Submit Quiz
             </button>
-        </form>
-        
-        <script>
-        document.querySelector('form').addEventListener('submit', function(e) {
-            const questions = {{ questions | length }};
-            let answered = 0;
-            let debugInfo = [];
-            
-            for (let i = 0; i < questions; i++) {
-                const checked = document.querySelector(`input[name="q${i}"]:checked`);
-                if (checked) {
-                    answered++;
-                    debugInfo.push(`Q${i}: ${checked.value}`);
-                } else {
-                    debugInfo.push(`Q${i}: Not answered`);
-                }
-            }
-            
-            console.log('Quiz submission debug:', debugInfo);
-            
-            if (answered < questions) {
-                e.preventDefault();
-                alert(`Please answer all ${questions} questions. You have answered ${answered} out of ${questions}.\n\nDebug: ${debugInfo.join(', ')}`);
-            }
-        });
-        </script>
-    </div>
+            <p style="margin: 12px 0 0 0; color: #5f6368; font-size: 13px;">Make sure you've answered all questions before submitting</p>
+        </div>
+    </form>
 </div>
+
+<script>
+document.getElementById('quizForm').addEventListener('submit', function(e) {
+    const questions = {{ questions | length }};
+    let answered = 0;
+    
+    for (let i = 0; i < questions; i++) {
+        const checked = document.querySelector(`input[name="q${i}"]:checked`);
+        if (checked) {
+            answered++;
+        }
+    }
+    
+    if (answered < questions) {
+        e.preventDefault();
+        alert(`Please answer all ${questions} questions.\n\nYou have answered ${answered} out of ${questions} questions.`);
+    }
+});
+</script>
 {% endblock %}

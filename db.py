@@ -20,6 +20,10 @@ def init_db():
 	cursor.execute('''CREATE TABLE IF NOT EXISTS qa_logs (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,question TEXT NOT NULL,answer TEXT NOT NULL,timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY (user_id) REFERENCES users (id))''')
     
 	cursor.execute('''CREATE TABLE IF NOT EXISTS quizzes (id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,subject_id INTEGER,teacher_id INTEGER,questions TEXT NOT NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY (subject_id) REFERENCES subjects (id),FOREIGN KEY (teacher_id) REFERENCES users (id))''')
+	
+	# Add difficulty column if it doesn't exist
+	try:cursor.execute('ALTER TABLE quizzes ADD COLUMN difficulty TEXT DEFAULT "medium"')
+	except sqlite3.OperationalError:pass
     
 	cursor.execute('''CREATE TABLE IF NOT EXISTS quiz_assignments (id INTEGER PRIMARY KEY AUTOINCREMENT,quiz_id INTEGER,student_id INTEGER,assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY (quiz_id) REFERENCES quizzes (id),FOREIGN KEY (student_id) REFERENCES users (id))''')
     
@@ -125,8 +129,10 @@ def log_quiz_result(user_id,score,answers,quiz_id):
 	cursor=conn.cursor()
 	answers_json=json.dumps(answers)
 	cursor.execute('INSERT INTO quiz_results (user_id, quiz_id, score, answers) VALUES (?, ?, ?, ?)',(user_id,quiz_id,score,answers_json))
+	result_id=cursor.lastrowid
 	conn.commit()
 	conn.close()
+	return result_id
 
 def get_quiz_results(user_id=None):
 	conn=get_db_connection()
@@ -177,11 +183,16 @@ def remove_user_subject(user_id,subject_id):
 	conn.commit()
 	conn.close()
 
-def create_quiz(title,subject_id,teacher_id,questions):
+def create_quiz(title,subject_id,teacher_id,questions,difficulty='medium'):
 	conn=get_db_connection()
 	cursor=conn.cursor()
 	questions_json=json.dumps(questions)
-	cursor.execute('INSERT INTO quizzes (title, subject_id, teacher_id, questions) VALUES (?, ?, ?, ?)',(title,subject_id,teacher_id,questions_json))
+	# Try to add difficulty, but handle if column doesn't exist yet
+	try:
+		cursor.execute('INSERT INTO quizzes (title, subject_id, teacher_id, questions, difficulty) VALUES (?, ?, ?, ?, ?)',(title,subject_id,teacher_id,questions_json,difficulty))
+	except sqlite3.OperationalError:
+		# Column doesn't exist, insert without it
+		cursor.execute('INSERT INTO quizzes (title, subject_id, teacher_id, questions) VALUES (?, ?, ?, ?)',(title,subject_id,teacher_id,questions_json))
 	quiz_id=cursor.lastrowid
 	conn.commit()
 	conn.close()
@@ -198,7 +209,15 @@ def get_teacher_quizzes(teacher_id):
 	conn=get_db_connection()
 	cursor=conn.cursor()
 	cursor.execute('SELECT * FROM quizzes WHERE teacher_id = ? ORDER BY created_at DESC',(teacher_id,))
-	quizzes=[{'id':row[0],'title':row[1],'subject_id':row[2],'teacher_id':row[3],'questions':json.loads(row[4]),'created_at':row[5]} for row in cursor.fetchall()]
+	quizzes=[]
+	for row in cursor.fetchall():
+		quiz={'id':row[0],'title':row[1],'subject_id':row[2],'teacher_id':row[3],'questions':json.loads(row[4]),'created_at':row[5]}
+		# Add difficulty if column exists (7th column, index 6)
+		if len(row)>6:
+			quiz['difficulty']=row[6] if row[6] else 'medium'
+		else:
+			quiz['difficulty']='medium'
+		quizzes.append(quiz)
 	conn.close()
 	return quizzes
 
@@ -206,7 +225,15 @@ def get_student_quizzes(student_id):
 	conn=get_db_connection()
 	cursor=conn.cursor()
 	cursor.execute('''SELECT q.* FROM quizzes q JOIN quiz_assignments qa ON q.id = qa.quiz_id WHERE qa.student_id = ? ORDER BY q.created_at DESC''',(student_id,))
-	quizzes=[{'id':row[0],'title':row[1],'subject_id':row[2],'teacher_id':row[3],'questions':json.loads(row[4]),'created_at':row[5]} for row in cursor.fetchall()]
+	quizzes=[]
+	for row in cursor.fetchall():
+		quiz={'id':row[0],'title':row[1],'subject_id':row[2],'teacher_id':row[3],'questions':json.loads(row[4]),'created_at':row[5]}
+		# Add difficulty if column exists (7th column, index 6)
+		if len(row)>6:
+			quiz['difficulty']=row[6] if row[6] else 'medium'
+		else:
+			quiz['difficulty']='medium'
+		quizzes.append(quiz)
 	conn.close()
 	return quizzes
 
@@ -216,7 +243,14 @@ def get_quiz_by_id(quiz_id):
 	cursor.execute('SELECT * FROM quizzes WHERE id = ?',(quiz_id,))
 	row=cursor.fetchone()
 	conn.close()
-	if row:return {'id':row[0],'title':row[1],'subject_id':row[2],'teacher_id':row[3],'questions':json.loads(row[4]),'created_at':row[5]}
+	if row:
+		quiz={'id':row[0],'title':row[1],'subject_id':row[2],'teacher_id':row[3],'questions':json.loads(row[4]),'created_at':row[5]}
+		# Add difficulty if column exists (7th column, index 6)
+		if len(row)>6:
+			quiz['difficulty']=row[6] if row[6] else 'medium'
+		else:
+			quiz['difficulty']='medium'
+		return quiz
 	return None
 
 def update_quiz_score(quiz_id,user_id,score):

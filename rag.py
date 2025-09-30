@@ -104,7 +104,7 @@ class SmartStudyRAG:
 		response=self.client.chat(message=question,model='command-a-03-2025',preamble="You are a helpful study assistant. Answer questions based on the provided context. Be accurate and helpful.",chat_history=[],documents=[{"text":context}])
 		return response.text
 
-	def generate_quiz(self,num_questions=5,description="",subject_id=None,existing_questions=None):
+	def generate_quiz(self,num_questions=5,description="",subject_id=None,difficulty="medium",existing_questions=None):
 		if not self.chunks:return []
 		if subject_id:
 			subject_chunks=[]
@@ -122,6 +122,14 @@ class SmartStudyRAG:
 			existing_questions_text="\n\nEXISTING QUESTIONS TO AVOID DUPLICATING:\n"
 			for i,eq in enumerate(existing_questions):
 				existing_questions_text+=f"{i+1}. {eq.get('question','')}\n"
+		
+		# Define difficulty-specific instructions
+		difficulty_instructions={
+			"easy":"Create questions that test basic recall and understanding of fundamental concepts. Use straightforward language. The correct answer should be clearly identifiable from the content.",
+			"medium":"Create questions that require applying concepts and analyzing relationships. Include some reasoning but keep it accessible. Options should be plausible but distinguishable with proper understanding.",
+			"hard":"Create questions that require complex reasoning, synthesis of multiple concepts, and critical thinking. Include subtle distinctions between options. Test deep understanding and ability to apply knowledge in new contexts."
+		}
+		difficulty_instruction=difficulty_instructions.get(difficulty,"Create questions that test understanding of the content.")
 		
 		for i in range(num_questions):
 			available_chunks=[j for j in range(len(chunks_to_use)) if j not in used_chunks]
@@ -145,6 +153,9 @@ class SmartStudyRAG:
 
 CONTENT: {combined_content[:2000]}
 
+DIFFICULTY LEVEL: {difficulty.upper()}
+DIFFICULTY GUIDELINE: {difficulty_instruction}
+
 TEACHER REQUIREMENTS: {description}
 {existing_questions_text}
 
@@ -156,11 +167,16 @@ C) [Third option]
 D) [Fourth option]
 Answer: A
 
-The Answer must be exactly A, B, C, or D. Choose the correct option letter. Focus on the teacher's requirements: {description}. Make sure your question is completely different from any existing questions listed above."""
+The Answer must be exactly A, B, C, or D. Choose the correct option letter. Follow the {difficulty} difficulty guideline above. Focus on the teacher's requirements: {description}. Make sure your question is completely different from any existing questions listed above.
+ALWAYS USE MARKDOWN FORMAT FOR THE QUESTION AND OPTIONS.
+"""
 				else:
 					message=f"""Create ONE multiple choice question from this educational content:
 
 CONTENT: {combined_content[:2000]}
+
+DIFFICULTY LEVEL: {difficulty.upper()}
+DIFFICULTY GUIDELINE: {difficulty_instruction}
 {existing_questions_text}
 
 IMPORTANT: You must respond in EXACTLY this format with no extra text:
@@ -171,8 +187,10 @@ C) [Third option]
 D) [Fourth option]
 Answer: A
 
-The Answer must be exactly A, B, C, or D. Choose the correct option letter. Make sure your question is completely different from any existing questions listed above."""
-				response=self.client.chat(message=message,model='command-a-03-2025',preamble="You are an expert quiz creator. You MUST follow the exact format. The answer must be exactly A, B, C, or D. Create questions that test real understanding of the content. Avoid creating questions that are similar to existing ones.",chat_history=[])
+The Answer must be exactly A, B, C, or D. Choose the correct option letter. Follow the {difficulty} difficulty guideline above. Make sure your question is completely different from any existing questions listed above.
+ALWAYS USE MARKDOWN FORMAT FOR THE QUESTION AND OPTIONS.
+"""
+				response=self.client.chat(message=message,model='command-a-03-2025',preamble=f"You are an expert quiz creator. You MUST follow the exact format. The answer must be exactly A, B, C, or D. Create {difficulty}-level questions that test real understanding of the content. Follow the difficulty guidelines precisely. Avoid creating questions that are similar to existing ones.",chat_history=[])
 				text=response.text.strip()
 				question,options,correct="",[],""
 				lines=text.split('\n')

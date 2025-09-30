@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+{% block page_title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<!-- Welcome Section -->
+<div style="padding: 40px 0 60px 0; text-align: center; background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border-radius: 24px; margin-bottom: 40px;">
+    <div style="width: 80px; height: 80px; background: #ea4335; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; box-shadow: 0 8px 24px rgba(234, 67, 53, 0.2);">
+        <span class="material-icons" style="font-size: 40px; color: white;">admin_panel_settings</span>
+    </div>
+    <h1 style="margin: 0 0 12px 0; font-size: 32px; font-weight: 600; color: #202124;">Welcome, {{ user.username }}!</h1>
+    <p style="margin: 0; color: #5f6368; font-size: 18px; font-weight: 400;">System Overview and Analytics</p>
+</div>
+
+<!-- Quick Actions -->
+<div style="margin-bottom: 40px;">
+    <h2 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #202124;">Quick Actions</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+        <div onclick="window.location.href='{{ url_for('admin') }}'" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';">
+            <div style="width: 48px; height: 48px; background: #ea4335; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                <span class="material-icons" style="font-size: 24px; color: white;">people</span>
+            </div>
+            <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600; color: #202124;">Manage Users</h3>
+            <p style="margin: 0; color: #5f6368; font-size: 14px;">Add, view, and manage users</p>
+        </div>
+        
+        <div onclick="window.location.href='{{ url_for('manage_subjects') }}'" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';">
+            <div style="width: 48px; height: 48px; background: #9c27b0; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                <span class="material-icons" style="font-size: 24px; color: white;">subject</span>
+            </div>
+            <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600; color: #202124;">Manage Subjects</h3>
+            <p style="margin: 0; color: #5f6368; font-size: 14px;">Create and manage subjects</p>
+        </div>
+        
+        <div onclick="window.location.href='{{ url_for('progress') }}'" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';">
+            <div style="width: 48px; height: 48px; background: #1a73e8; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                <span class="material-icons" style="font-size: 24px; color: white;">analytics</span>
+            </div>
+            <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600; color: #202124;">View Analytics</h3>
+            <p style="margin: 0; color: #5f6368; font-size: 14px;">System progress and reports</p>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div style="margin-bottom: 40px;">
+    <h2 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #202124;">System Overview</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+        {% for stat_name, stat_value in stats.items() %}
+        <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div style="font-size: 32px; font-weight: 700; color: #ea4335; margin-bottom: 8px;">{{ stat_value }}</div>
+            <div style="color: #5f6368; font-size: 14px; font-weight: 500; text-transform: capitalize;">{{ stat_name.replace('_', ' ') }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div style="margin-bottom: 40px;">
+    <h2 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #202124;">Recent Quiz Activity</h2>
+    {% if recent_activities %}
+    <div style="background: white; border-radius: 16px; border: 1px solid #e8eaed; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        {% for activity in recent_activities[:10] %}
+        <div style="padding: 20px; border-bottom: 1px solid #f1f3f4; display: flex; align-items: center; gap: 16px;">
+            <div style="width: 40px; height: 40px; background: #1a73e8; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                <span class="material-icons" style="font-size: 20px; color: white;">quiz</span>
+            </div>
+            <div style="flex: 1;">
+                <div style="font-size: 16px; font-weight: 500; color: #202124; margin-bottom: 4px;">{{ activity.username }} completed {{ activity.quiz_title }}</div>
+                <div style="font-size: 14px; color: #5f6368;">Score: {{ activity.score }}% • {{ activity.time }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="background: white; padding: 48px; border-radius: 16px; border: 1px solid #e8eaed; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <div style="width: 64px; height: 64px; background: #f8f9fa; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+            <span class="material-icons" style="font-size: 32px; color: #5f6368;">timeline</span>
+        </div>
+        <h3 style="margin: 0 0 8px 0; color: #5f6368; font-size: 18px; font-weight: 500;">No recent activity</h3>
+        <p style="margin: 0; color: #5f6368; font-size: 14px;">Activity will appear here as users take quizzes</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Charts Section -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-bottom: 40px;">
+    <!-- User Distribution -->
+    <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #202124;">User Distribution</h3>
+        {% if user_distribution['values'] and user_distribution['values']|length > 0 %}
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+            {% set max_value = user_distribution['values']|max %}
+            {% for i in range(user_distribution.labels|length) %}
+            {% set label = user_distribution.labels[i] %}
+            {% set value = user_distribution['values'][i] %}
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #5f6368; font-size: 14px; font-weight: 500;">{{ label }}</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 120px; height: 8px; background: #f1f3f4; border-radius: 4px; overflow: hidden;">
+                        <div style="width: {{ (value / max_value * 100) if max_value > 0 else 0 }}%; height: 100%; background: #ea4335; transition: width 0.8s ease;"></div>
+                    </div>
+                    <span style="color: #202124; font-size: 14px; font-weight: 600; min-width: 30px; text-align: right;">{{ value }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 32px;">
+            <span class="material-icons" style="font-size: 48px; color: #dadce0;">people</span>
+            <p style="margin: 12px 0 0 0; color: #5f6368; font-size: 14px;">No user data yet</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Performance Overview -->
+    <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #202124;">Performance Overview</h3>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #f8f9fa; border-radius: 12px;">
+                <span style="color: #5f6368; font-size: 14px; font-weight: 500;">Average Score</span>
+                <span style="color: #202124; font-size: 24px; font-weight: 700;">{{ performance_data.average_score }}%</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #f8f9fa; border-radius: 12px;">
+                <span style="color: #5f6368; font-size: 14px; font-weight: 500;">Total Attempts</span>
+                <span style="color: #202124; font-size: 24px; font-weight: 700;">{{ performance_data.total_attempts }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Score Distribution -->
+    <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #202124;">Score Distribution</h3>
+        {% if score_distribution['values'] and score_distribution['values']|length > 0 %}
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            {% set max_value = score_distribution['values']|max %}
+            {% for i in range(score_distribution.labels|length) %}
+            {% set label = score_distribution.labels[i] %}
+            {% set value = score_distribution['values'][i] %}
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #5f6368; font-size: 14px; font-weight: 500;">{{ label }}</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 100px; height: 8px; background: #f1f3f4; border-radius: 4px; overflow: hidden;">
+                        <div style="width: {{ (value / max_value * 100) if max_value > 0 else 0 }}%; height: 100%; background: #34a853; transition: width 0.8s ease;"></div>
+                    </div>
+                    <span style="color: #202124; font-size: 14px; font-weight: 600; min-width: 30px; text-align: right;">{{ value }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 32px;">
+            <span class="material-icons" style="font-size: 48px; color: #dadce0;">bar_chart</span>
+            <p style="margin: 12px 0 0 0; color: #5f6368; font-size: 14px;">No quiz data yet</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Subject Activity -->
+    <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #202124;">Subject Activity</h3>
+        {% if subject_activity['values'] and subject_activity['values']|length > 0 %}
+        <div style="display: flex; flex-direction: column; gap: 12px; max-height: 300px; overflow-y: auto;">
+            {% set max_value = subject_activity['values']|max %}
+            {% for i in range(subject_activity.labels|length) %}
+            {% set label = subject_activity.labels[i] %}
+            {% set value = subject_activity['values'][i] %}
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #5f6368; font-size: 14px; font-weight: 500;">{{ label }}</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 80px; height: 8px; background: #f1f3f4; border-radius: 4px; overflow: hidden;">
+                        <div style="width: {{ (value / max_value * 100) if max_value > 0 else 0 }}%; height: 100%; background: #9c27b0; transition: width 0.8s ease;"></div>
+                    </div>
+                    <span style="color: #202124; font-size: 14px; font-weight: 600; min-width: 30px; text-align: right;">{{ value }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 32px;">
+            <span class="material-icons" style="font-size: 48px; color: #dadce0;">subject</span>
+            <p style="margin: 12px 0 0 0; color: #5f6368; font-size: 14px;">No subject activity yet</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -39,7 +39,8 @@
 
     <div id="questionsContainer">
         {% for question in questions %}
-        <div class="google-card question-item" data-question-id="{{ loop.index0 }}" style="padding: 24px; margin-bottom: 16px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        {% set question_index = loop.index0 %}
+        <div class="google-card question-item" data-question-id="{{ question_index }}" style="padding: 24px; margin-bottom: 16px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
                 <div style="flex: 1;">
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
@@ -50,49 +51,72 @@
                     </div>
                     
                     <div style="margin-bottom: 16px;">
-                        <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Question:</label>
-                        <textarea class="google-input question-text" rows="3" placeholder="Enter your question here...">{{ question.question }}</textarea>
+                        <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">
+                            Question:
+                            <span style="color: #5f6368; font-weight: 400; font-size: 12px; margin-left: 8px;">(Markdown supported)</span>
+                        </label>
+                        <textarea class="google-input question-text" rows="3" placeholder="Enter your question here... (You can use **bold**, *italic*, etc.)">{{ question.question }}</textarea>
                     </div>
 
                     <div style="margin-bottom: 16px;">
-                        <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Options:</label>
-                        <div id="options-{{ loop.index0 }}">
+                        <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">
+                            Options:
+                            <span style="color: #5f6368; font-weight: 400; font-size: 12px; margin-left: 8px;">
+                                (Click radio button for correct answer, Markdown supported)
+                            </span>
+                        </label>
+                        <div id="options-{{ question_index }}">
                             {% for option in question.options %}
-                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                                <input type="radio" name="correct-{{ loop.index0 }}" value="{{ loop.index0 }}" 
-                                       {% if loop.index0 == question.correct %}checked{% endif %}
-                                       style="margin: 0;">
+                            {% set is_correct = (question.correct == loop.index0) or (question.correct == ['A','B','C','D'][loop.index0]) %}
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 8px; border-radius: 8px; {% if is_correct %}background: #e8f5e9; border: 2px solid #34a853;{% else %}background: #f8f9fa; border: 2px solid transparent;{% endif %} transition: all 0.2s;">
+                                <input type="radio" name="correct-{{ question_index }}" value="{{ loop.index0 }}" 
+                                       {% if is_correct %}checked{% endif %}
+                                       style="margin: 0; cursor: pointer; width: 18px; height: 18px;"
+                                       onchange="this.parentElement.parentElement.querySelectorAll('div').forEach(d => { d.style.background='#f8f9fa'; d.style.border='2px solid transparent'; const badge = d.querySelector('.correct-badge'); if(badge) badge.remove(); }); this.parentElement.style.background='#e8f5e9'; this.parentElement.style.border='2px solid #34a853'; if(!this.parentElement.querySelector('.correct-badge')) { const badge = document.createElement('span'); badge.className='correct-badge'; badge.style.cssText='background: #34a853; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;'; badge.textContent='✓ CORRECT'; this.parentElement.appendChild(badge); }">
+                                <span style="font-weight: 600; color: #5f6368; min-width: 20px;">{{ ['A', 'B', 'C', 'D', 'E', 'F'][loop.index0] }})</span>
                                 <input type="text" class="google-input option-input" value="{{ option }}" 
-                                       style="flex: 1; margin: 0;" placeholder="Option {{ loop.index }}">
+                                       style="flex: 1; margin: 0; {% if is_correct %}border-color: #34a853;{% endif %}" 
+                                       placeholder="Option {{ loop.index }} (Markdown: **bold**, *italic*, $math$)">
                                 <button onclick="removeOption(this)" class="google-button secondary" style="padding: 6px 8px; min-width: auto;">
                                     <span class="material-icons" style="font-size: 16px;">close</span>
                                 </button>
+                                {% if is_correct %}
+                                <span class="correct-badge" style="background: #34a853; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">✓ CORRECT</span>
+                                {% endif %}
                             </div>
                             {% endfor %}
                         </div>
-                        <button onclick="addOption({{ loop.index0 }})" class="google-button secondary" style="margin-top: 8px;">
+                        <button onclick="addOption({{ question_index }})" class="google-button secondary" style="margin-top: 8px;">
                             <span class="material-icons" style="font-size: 18px; margin-right: 8px;">add</span>
                             Add Option
                         </button>
+                        <p style="margin: 8px 0 0 0; color: #5f6368; font-size: 11px;">
+                            💡 Tip: Use <code style="background: #f8f9fa; padding: 2px 4px; border-radius: 3px;">**bold**</code>, 
+                            <code style="background: #f8f9fa; padding: 2px 4px; border-radius: 3px;">*italic*</code>, 
+                            or <code style="background: #f8f9fa; padding: 2px 4px; border-radius: 3px;">$x^2$</code> for math
+                        </p>
                     </div>
 
                     <div style="margin-bottom: 16px;">
-                        <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Explanation (Optional):</label>
-                        <textarea class="google-input explanation" rows="2" placeholder="Add explanation for this question...">{{ question.explanation or '' }}</textarea>
+                        <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">
+                            Explanation (Optional):
+                            <span style="color: #5f6368; font-weight: 400; font-size: 12px; margin-left: 8px;">(Markdown supported)</span>
+                        </label>
+                        <textarea class="google-input explanation" rows="2" placeholder="Add explanation (Markdown: **bold**, *italic*, $math$, etc.)">{{ question.explanation or '' }}</textarea>
                     </div>
                 </div>
                 
                 <div style="display: flex; flex-direction: column; gap: 8px; margin-left: 16px;">
-                    <button onclick="moveQuestion({{ loop.index0 }}, 'up')" class="google-button secondary" style="padding: 8px;">
+                    <button onclick="moveQuestion({{ question_index }}, 'up')" class="google-button secondary" style="padding: 8px;">
                         <span class="material-icons" style="font-size: 18px;">keyboard_arrow_up</span>
                     </button>
-                    <button onclick="moveQuestion({{ loop.index0 }}, 'down')" class="google-button secondary" style="padding: 8px;">
+                    <button onclick="moveQuestion({{ question_index }}, 'down')" class="google-button secondary" style="padding: 8px;">
                         <span class="material-icons" style="font-size: 18px;">keyboard_arrow_down</span>
                     </button>
-                    <button onclick="duplicateQuestion({{ loop.index0 }})" class="google-button secondary" style="padding: 8px;">
+                    <button onclick="duplicateQuestion({{ question_index }})" class="google-button secondary" style="padding: 8px;">
                         <span class="material-icons" style="font-size: 18px;">content_copy</span>
                     </button>
-                    <button onclick="deleteQuestion({{ loop.index0 }})" class="google-button" style="background: #ea4335; padding: 8px;">
+                    <button onclick="deleteQuestion({{ question_index }})" class="google-button" style="background: #ea4335; padding: 8px;">
                         <span class="material-icons" style="font-size: 18px;">delete</span>
                     </button>
                 </div>
@@ -127,20 +151,28 @@
         </div>
 
         <div style="margin-bottom: 16px;">
-            <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Question:</label>
-            <textarea id="newQuestionText" class="google-input" rows="3" placeholder="Enter your question..."></textarea>
+            <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">
+                Question:
+                <span style="color: #5f6368; font-weight: 400; font-size: 12px; margin-left: 8px;">(Markdown supported)</span>
+            </label>
+            <textarea id="newQuestionText" class="google-input" rows="3" placeholder="Enter your question (Markdown: **bold**, *italic*, $x^2$, etc.)"></textarea>
         </div>
 
         <div id="optionsSection" style="margin-bottom: 16px;">
-            <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Options:</label>
+            <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">
+                Options:
+                <span style="color: #5f6368; font-weight: 400; font-size: 12px; margin-left: 8px;">(Markdown supported)</span>
+            </label>
             <div id="newOptions">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                    <input type="radio" name="newCorrect" value="0" checked>
-                    <input type="text" class="google-input" placeholder="Option 1" style="flex: 1;">
+                    <input type="radio" name="newCorrect" value="0" checked style="width: 18px; height: 18px; cursor: pointer;">
+                    <span style="font-weight: 600; color: #5f6368; min-width: 20px;">A)</span>
+                    <input type="text" class="google-input" placeholder="Option 1 (Markdown supported)" style="flex: 1;">
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                    <input type="radio" name="newCorrect" value="1">
-                    <input type="text" class="google-input" placeholder="Option 2" style="flex: 1;">
+                    <input type="radio" name="newCorrect" value="1" style="width: 18px; height: 18px; cursor: pointer;">
+                    <span style="font-weight: 600; color: #5f6368; min-width: 20px;">B)</span>
+                    <input type="text" class="google-input" placeholder="Option 2 (Markdown supported)" style="flex: 1;">
                 </div>
             </div>
             <button onclick="addNewOption()" class="google-button secondary" style="margin-top: 8px;">
@@ -169,12 +201,14 @@ function closeAddQuestionModal() {
     document.getElementById('newQuestionText').value = '';
     document.getElementById('newOptions').innerHTML = `
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-            <input type="radio" name="newCorrect" value="0" checked>
-            <input type="text" class="google-input" placeholder="Option 1" style="flex: 1;">
+            <input type="radio" name="newCorrect" value="0" checked style="width: 18px; height: 18px; cursor: pointer;">
+            <span style="font-weight: 600; color: #5f6368; min-width: 20px;">A)</span>
+            <input type="text" class="google-input" placeholder="Option 1 (Markdown supported)" style="flex: 1;">
         </div>
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-            <input type="radio" name="newCorrect" value="1">
-            <input type="text" class="google-input" placeholder="Option 2" style="flex: 1;">
+            <input type="radio" name="newCorrect" value="1" style="width: 18px; height: 18px; cursor: pointer;">
+            <span style="font-weight: 600; color: #5f6368; min-width: 20px;">B)</span>
+            <input type="text" class="google-input" placeholder="Option 2 (Markdown supported)" style="flex: 1;">
         </div>
     `;
 }
@@ -183,10 +217,12 @@ function addNewOption() {
     const optionsContainer = document.getElementById('newOptions');
     const optionIndex = optionsContainer.children.length;
     const optionDiv = document.createElement('div');
+    const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
     optionDiv.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 8px;';
     optionDiv.innerHTML = `
-        <input type="radio" name="newCorrect" value="${optionIndex}">
-        <input type="text" class="google-input" placeholder="Option ${optionIndex + 1}" style="flex: 1;">
+        <input type="radio" name="newCorrect" value="${optionIndex}" style="width: 18px; height: 18px; cursor: pointer;">
+        <span style="font-weight: 600; color: #5f6368; min-width: 20px;">${letters[optionIndex] || (optionIndex + 1)})</span>
+        <input type="text" class="google-input" placeholder="Option ${optionIndex + 1} (Markdown supported)" style="flex: 1;">
         <button onclick="removeNewOption(this)" class="google-button secondary" style="padding: 6px 8px; min-width: auto;">
             <span class="material-icons" style="font-size: 16px;">close</span>
         </button>
@@ -248,10 +284,14 @@ function addOption(questionIndex) {
     const optionsContainer = document.getElementById(`options-${questionIndex}`);
     const optionIndex = optionsContainer.children.length;
     const optionDiv = document.createElement('div');
-    optionDiv.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 8px;';
+    optionDiv.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 8px; border-radius: 8px; background: #f8f9fa; border: 2px solid transparent; transition: all 0.2s;';
+    const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
     optionDiv.innerHTML = `
-        <input type="radio" name="correct-${questionIndex}" value="${optionIndex}">
-        <input type="text" class="google-input option-input" placeholder="Option ${optionIndex + 1}" style="flex: 1; margin: 0;">
+        <input type="radio" name="correct-${questionIndex}" value="${optionIndex}" 
+               style="margin: 0; cursor: pointer; width: 18px; height: 18px;"
+               onchange="this.parentElement.parentElement.querySelectorAll('div').forEach(d => { d.style.background='#f8f9fa'; d.style.border='2px solid transparent'; const badge = d.querySelector('.correct-badge'); if(badge) badge.remove(); }); this.parentElement.style.background='#e8f5e9'; this.parentElement.style.border='2px solid #34a853'; const badge = document.createElement('span'); badge.className='correct-badge'; badge.style.cssText='background: #34a853; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;'; badge.textContent='✓ CORRECT'; this.parentElement.appendChild(badge);">
+        <span style="font-weight: 600; color: #5f6368; min-width: 20px;">${letters[optionIndex] || optionIndex + 1})</span>
+        <input type="text" class="google-input option-input" placeholder="Option ${optionIndex + 1} (Markdown supported)" style="flex: 1; margin: 0;">
         <button onclick="removeOption(this)" class="google-button secondary" style="padding: 6px 8px; min-width: auto;">
             <span class="material-icons" style="font-size: 16px;">close</span>
         </button>
@@ -374,17 +414,28 @@ function renderQuestions() {
                     </div>
 
                     <div style="margin-bottom: 16px;">
-                        <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Options:</label>
+                        <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">
+                            Options:
+                            <span style="color: #5f6368; font-weight: 400; font-size: 12px; margin-left: 8px;">
+                                (Click the radio button to mark the correct answer)
+                            </span>
+                        </label>
                         <div id="options-${index}">
-                            ${question.options.map((option, optionIndex) => `
-                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                                    <input type="radio" name="correct-${index}" value="${optionIndex}" ${optionIndex === question.correct ? 'checked' : ''}>
-                                    <input type="text" class="google-input option-input" value="${option}" style="flex: 1; margin: 0;" placeholder="Option ${optionIndex + 1}">
+                            ${question.options.map((option, optionIndex) => {
+                                const isCorrect = (optionIndex === question.correct) || (question.correct === ['A','B','C','D','E','F'][optionIndex]);
+                                return `
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 8px; border-radius: 8px; ${isCorrect ? 'background: #e8f5e9; border: 2px solid #34a853;' : 'background: #f8f9fa; border: 2px solid transparent;'} transition: all 0.2s;">
+                                    <input type="radio" name="correct-${index}" value="${optionIndex}" ${isCorrect ? 'checked' : ''} 
+                                           style="margin: 0; cursor: pointer; width: 18px; height: 18px;"
+                                           onchange="this.parentElement.parentElement.querySelectorAll('div').forEach(d => { d.style.background='#f8f9fa'; d.style.border='2px solid transparent'; const badge = d.querySelector('.correct-badge'); if(badge) badge.remove(); }); this.parentElement.style.background='#e8f5e9'; this.parentElement.style.border='2px solid #34a853'; if(!this.parentElement.querySelector('.correct-badge')) { const badge = document.createElement('span'); badge.className='correct-badge'; badge.style.cssText='background: #34a853; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;'; badge.textContent='✓ CORRECT'; this.parentElement.appendChild(badge); }">
+                                    <span style="font-weight: 600; color: #5f6368; min-width: 20px;">${['A', 'B', 'C', 'D', 'E', 'F'][optionIndex]})</span>
+                                    <input type="text" class="google-input option-input" value="${option}" style="flex: 1; margin: 0; ${isCorrect ? 'border-color: #34a853;' : ''}" placeholder="Option ${optionIndex + 1}">
                                     <button onclick="removeOption(this)" class="google-button secondary" style="padding: 6px 8px; min-width: auto;">
                                         <span class="material-icons" style="font-size: 16px;">close</span>
                                     </button>
+                                    ${isCorrect ? '<span class="correct-badge" style="background: #34a853; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">✓ CORRECT</span>' : ''}
                                 </div>
-                            `).join('')}
+                            `}).join('')}
                         </div>
                         <button onclick="addOption(${index})" class="google-button secondary" style="margin-top: 8px;">
                             <span class="material-icons" style="font-size: 18px; margin-right: 8px;">add</span>

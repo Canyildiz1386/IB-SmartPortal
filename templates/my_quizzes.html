@@ -1,39 +1,86 @@
 {% extends "base.html" %}
 
 {% block title %}My Quizzes{% endblock %}
+{% block page_title %}My Quizzes{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto">
-    <div class="flex justify-between items-center mb-8">
-        <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">My Quizzes</h1>
-        <a href="{{ url_for('create_quiz_route') }}" class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-lg font-medium transition-all transform hover:scale-105">
+<div style="max-width: 1400px; margin: 0 auto; padding: 24px;">
+    <!-- Page Header -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="width: 56px; height: 56px; background: #9c27b0; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                <span class="material-icons" style="font-size: 28px; color: white;">assignment</span>
+            </div>
+            <div>
+                <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 600; color: #202124;">My Quizzes</h1>
+                <p style="margin: 0; color: #5f6368; font-size: 16px;">Create, edit, and assign quizzes to your students</p>
+            </div>
+        </div>
+        <a href="{{ url_for('create_quiz_route') }}" class="google-button" style="text-decoration: none; padding: 14px 24px; font-size: 16px; background: #34a853;">
+            <span class="material-icons" style="font-size: 20px; margin-right: 8px;">add_circle</span>
             Create New Quiz
         </a>
     </div>
     
     {% if quizzes %}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px;">
             {% for quiz in quizzes %}
-                <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all">
-                    <h3 class="text-xl font-semibold mb-2 text-white">{{ quiz.title }}</h3>
-                    <p class="text-gray-400 mb-4">{{ quiz.subject_name }}</p>
-                    <p class="text-sm text-gray-500 mb-4">Created: {{ quiz.created_time }}</p>
+                <div style="background: white; border-radius: 16px; border: 1px solid #e8eaed; overflow: hidden; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'">
+                    <!-- Decorative Top Border -->
+                    <div style="height: 6px; background: linear-gradient(90deg, #9c27b0, #673ab7, #7b1fa2);"></div>
                     
-                    <div class="flex space-x-2">
-                        <a href="{{ url_for('assign_quiz', quiz_id=quiz.id) }}" 
-                           class="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all text-center">
-                            Assign
-                        </a>
+                    <div style="padding: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+                            <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #202124; flex: 1; line-height: 1.3;" class="markdown-content">{{ quiz.title }}</h3>
+                            {% set difficulty = quiz.get('difficulty', 'medium') %}
+                            {% if difficulty == 'easy' %}
+                                <span style="padding: 4px 10px; border-radius: 12px; background: #e8f5e9; color: #2e7d32; font-size: 11px; font-weight: 600; border: 1px solid #81c784; white-space: nowrap;">🟢 Easy</span>
+                            {% elif difficulty == 'hard' %}
+                                <span style="padding: 4px 10px; border-radius: 12px; background: #ffebee; color: #c62828; font-size: 11px; font-weight: 600; border: 1px solid #e57373; white-space: nowrap;">🔴 Hard</span>
+                            {% else %}
+                                <span style="padding: 4px 10px; border-radius: 12px; background: #fff8e1; color: #f57f17; font-size: 11px; font-weight: 600; border: 1px solid #ffd54f; white-space: nowrap;">🟡 Medium</span>
+                            {% endif %}
+                        </div>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="material-icons" style="font-size: 16px; color: #5f6368;">help_outline</span>
+                                <span style="color: #5f6368; font-size: 14px;">
+                                    <strong style="color: #202124;">{{ quiz.questions|length }}</strong> questions
+                                </span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="material-icons" style="font-size: 16px; color: #5f6368;">schedule</span>
+                                <span style="color: #5f6368; font-size: 13px;">Created {{ quiz.created_at }}</span>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 8px;">
+                            <a href="{{ url_for('quiz_editor', quiz_id=quiz.id) }}" 
+                               class="google-button" style="flex: 1; text-decoration: none; padding: 12px; font-size: 14px; background: #1a73e8; justify-content: center;">
+                                <span class="material-icons" style="font-size: 18px; margin-right: 6px;">edit</span>
+                                Edit
+                            </a>
+                            <a href="{{ url_for('assign_quiz', quiz_id=quiz.id) }}" 
+                               class="google-button" style="flex: 1; text-decoration: none; padding: 12px; font-size: 14px; background: #34a853; justify-content: center;">
+                                <span class="material-icons" style="font-size: 18px; margin-right: 6px;">send</span>
+                                Assign
+                            </a>
+                        </div>
                     </div>
                 </div>
             {% endfor %}
         </div>
     {% else %}
-        <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-12 border border-gray-700 text-center">
-            <h3 class="text-xl font-semibold mb-4 text-gray-300">No quizzes created yet</h3>
-            <p class="text-gray-400 mb-6">Create your first quiz to get started.</p>
-            <a href="{{ url_for('create_quiz_route') }}" class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-lg font-medium transition-all transform hover:scale-105">
-                Create Quiz
+        <div style="background: white; padding: 64px; text-align: center; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div style="width: 80px; height: 80px; background: #f8f9fa; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; border: 1px solid #dadce0;">
+                <span class="material-icons" style="font-size: 40px; color: #5f6368;">quiz</span>
+            </div>
+            <h3 style="margin: 0 0 12px 0; color: #202124; font-size: 20px; font-weight: 600;">No Quizzes Created Yet</h3>
+            <p style="margin: 0 0 24px 0; color: #5f6368; font-size: 14px;">Create your first quiz to get started with student assessments</p>
+            <a href="{{ url_for('create_quiz_route') }}" class="google-button" style="text-decoration: none; padding: 14px 28px; font-size: 16px; background: #34a853;">
+                <span class="material-icons" style="font-size: 20px; margin-right: 8px;">add_circle</span>
+                Create Your First Quiz
             </a>
         </div>
     {% endif %}

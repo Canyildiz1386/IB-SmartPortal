@@ -1,32 +1,33 @@
 {% extends "base.html" %}
 
-{% block title %}Admin{% endblock %}
+{% block title %}Manage Users{% endblock %}
 
 {% block content %}
-<div style="max-width: 1000px; margin: 0 auto; padding: 24px;">
+<div style="max-width: 1400px; margin: 0 auto; padding: 24px;">
     <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
         <div style="width: 56px; height: 56px; background: #ea4335; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-            <span class="material-icons" style="font-size: 28px; color: white;">admin_panel_settings</span>
+            <span class="material-icons" style="font-size: 28px; color: white;">people</span>
         </div>
         <div>
-            <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 600; color: #202124;">Admin Panel</h1>
-            <p style="margin: 0; color: #5f6368; font-size: 16px;">Manage users and system settings</p>
+            <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 600; color: #202124;">Manage Users</h1>
+            <p style="margin: 0; color: #5f6368; font-size: 16px;">Add, edit, and manage system users</p>
         </div>
     </div>
     
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px;">
-        <div style="background: white; padding: 32px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #202124;">Add User</h2>
+    <div style="display: grid; grid-template-columns: 400px 1fr; gap: 24px;">
+        <!-- Add User Form -->
+        <div style="background: white; padding: 32px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1); height: fit-content;">
+            <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #202124;">Add New User</h2>
             
             <form method="POST" action="{{ url_for('admin') }}" style="display: flex; flex-direction: column; gap: 20px;">
                 <div>
                     <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Username</label>
-                    <input type="text" name="username" required placeholder="Username" class="google-input">
+                    <input type="text" name="username" required placeholder="Enter username" class="google-input">
                 </div>
                 
                 <div>
                     <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Password</label>
-                    <input type="password" name="password" required placeholder="Password" class="google-input">
+                    <input type="password" name="password" required placeholder="Enter password" class="google-input">
                 </div>
                 
                 <div>
@@ -38,16 +39,27 @@
                     </select>
                 </div>
                 
-                <div id="subjectsSection" style="display: none;">
-                    <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Assign Subjects</label>
-                    <div style="max-height: 160px; overflow-y: auto; border: 1px solid #dadce0; border-radius: 8px; padding: 12px; background: #f8f9fa;">
-                        {% for subject in all_subjects %}
-                            <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
-                                <input type="checkbox" name="subject_ids" value="{{ subject.id }}" style="margin-right: 8px;">
-                                <span style="color: #202124; font-size: 14px;">{{ subject.name }}</span>
-                            </label>
-                        {% endfor %}
+                <div id="subjectsSection" style="display: block;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">
+                        Assign Subjects
+                        <span style="color: #5f6368; font-weight: 400; font-size: 12px;">(select one or more)</span>
+                    </label>
+                    <div style="max-height: 200px; overflow-y: auto; border: 1px solid #dadce0; border-radius: 8px; padding: 12px; background: #f8f9fa;">
+                        {% if all_subjects %}
+                            {% for subject in all_subjects %}
+                                <label style="display: flex; align-items: center; margin-bottom: 10px; cursor: pointer; padding: 6px; border-radius: 6px; transition: background 0.2s;" onmouseover="this.style.background='#e8f0fe'" onmouseout="this.style.background='transparent'">
+                                    <input type="checkbox" name="subject_ids" value="{{ subject.id }}" style="margin-right: 10px; width: 16px; height: 16px; cursor: pointer;">
+                                    <span style="color: #202124; font-size: 14px; font-weight: 500;">{{ subject.name }}</span>
+                                </label>
+                            {% endfor %}
+                        {% else %}
+                            <p style="color: #5f6368; font-size: 13px; margin: 8px 0; font-style: italic;">No subjects available. Create subjects first in Manage Subjects.</p>
+                        {% endif %}
                     </div>
+                    <p style="margin: 8px 0 0 0; color: #5f6368; font-size: 12px;">
+                        <span class="material-icons" style="font-size: 14px; vertical-align: middle;">info</span>
+                        You can assign multiple subjects to this user
+                    </p>
                 </div>
                 
                 <button type="submit" class="google-button" style="width: 100%; padding: 16px; font-size: 16px; background: #34a853;">
@@ -57,24 +69,52 @@
             </form>
         </div>
         
+        <!-- Users List -->
         <div style="background: white; padding: 32px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #202124;">Users</h2>
+            <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #202124;">All Users ({{ users|length }})</h2>
             
-            <div style="display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto;">
+            <div style="display: flex; flex-direction: column; gap: 12px; max-height: 600px; overflow-y: auto;">
                 {% for user in users %}
-                    <div style="background: #f8f9fa; border: 1px solid #e8eaed; border-radius: 8px; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <span style="color: #202124; font-weight: 600; font-size: 16px;">{{ user.username }}</span>
-                            <span style="color: #5f6368; font-size: 14px; margin-left: 8px;">({{ user.role }})</span>
+                    <div style="background: #f8f9fa; border: 1px solid #e8eaed; border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s ease;" onmouseover="this.style.background='#e8f0fe'" onmouseout="this.style.background='#f8f9fa'">
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                                <div style="width: 40px; height: 40px; background: {% if user.role == 'admin' %}#ea4335{% elif user.role == 'teacher' %}#1a73e8{% else %}#34a853{% endif %}; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                    <span class="material-icons" style="font-size: 20px; color: white;">
+                                        {% if user.role == 'admin' %}admin_panel_settings{% elif user.role == 'teacher' %}school{% else %}person{% endif %}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span style="color: #202124; font-weight: 600; font-size: 16px;">{{ user.username }}</span>
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                                        <span style="background: {% if user.role == 'admin' %}#ea4335{% elif user.role == 'teacher' %}#1a73e8{% else %}#34a853{% endif %}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; text-transform: uppercase;">
+                                            {{ user.role }}
+                                        </span>
+                                        {% if user.id != session.user_id %}
+                                        <span style="color: #5f6368; font-size: 12px;">ID: {{ user.id }}</span>
+                                        {% else %}
+                                        <span style="color: #1a73e8; font-size: 12px; font-weight: 500;">(You)</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        {% if user.id != session.user_id %}
-                            <a href="{{ url_for('delete_user_route', user_id=user.id) }}" 
-                               class="google-button" style="background: #ea4335; padding: 8px 16px; font-size: 14px; text-decoration: none;"
-                               onclick="return confirm('Delete user {{ user.username }}?')">
-                                <span class="material-icons" style="font-size: 16px; margin-right: 4px;">delete</span>
-                                Delete
-                            </a>
-                        {% endif %}
+                        <div style="display: flex; gap: 8px;">
+                            {% if user.id != session.user_id %}
+                                <a href="{{ url_for('edit_user', user_id=user.id) }}" 
+                                   class="google-button secondary" style="padding: 10px 16px; font-size: 14px; text-decoration: none;">
+                                    <span class="material-icons" style="font-size: 16px; margin-right: 4px;">edit</span>
+                                    Edit
+                                </a>
+                                <a href="{{ url_for('delete_user_route', user_id=user.id) }}" 
+                                   class="google-button" style="background: #ea4335; padding: 10px 16px; font-size: 14px; text-decoration: none;"
+                                   onclick="return confirm('Are you sure you want to delete user {{ user.username }}? This action cannot be undone.')">
+                                    <span class="material-icons" style="font-size: 16px; margin-right: 4px;">delete</span>
+                                    Delete
+                                </a>
+                            {% else %}
+                                <span style="color: #5f6368; font-size: 14px; padding: 10px 16px; font-style: italic;">Cannot edit your own account</span>
+                            {% endif %}
+                        </div>
                     </div>
                 {% endfor %}
             </div>

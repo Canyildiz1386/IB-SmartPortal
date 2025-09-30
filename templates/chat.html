@@ -24,7 +24,7 @@
                 <!-- User Message -->
                 <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
                     <div style="max-width: 70%; background: #1a73e8; color: white; padding: 16px 20px; border-radius: 18px 18px 4px 18px;">
-                        <p style="margin: 0; font-size: 14px; line-height: 1.5;">{{ entry.question }}</p>
+                        <p style="margin: 0; font-size: 14px; line-height: 1.5;" class="markdown-content">{{ entry.question }}</p>
                     </div>
                 </div>
                 
@@ -37,8 +37,8 @@
                             </div>
                             <span style="font-size: 12px; font-weight: 500; color: #5f6368;">AI Assistant</span>
                         </div>
-                        <div style="font-size: 14px; line-height: 1.6; color: #202124;">
-                            {{ entry.answer | safe }}
+                        <div style="font-size: 14px; line-height: 1.6; color: #202124;" class="markdown-content">
+                            {{ entry.answer }}
                         </div>
                         {% if entry.sources %}
                             <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e8eaed;">

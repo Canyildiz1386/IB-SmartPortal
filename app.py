@@ -1,7 +1,7 @@
 import os,uuid,json,hashlib,time
 from flask import Flask,render_template,request,redirect,url_for,session,flash,jsonify,make_response
 from werkzeug.utils import secure_filename
-from db import init_db,verify_user,add_material,log_qa,get_materials,add_user,delete_user,get_all_users,log_quiz_result,get_qa_logs,get_quiz_results,export_quiz_csv,get_subjects,get_user_subjects,assign_user_subject,remove_user_subject,create_quiz,assign_quiz_to_students,get_teacher_quizzes,get_student_quizzes,get_quiz_by_id,update_quiz_score,get_db_connection,get_non_indexed_materials,update_material_indexed_status
+from db import init_db,verify_user,add_material,log_qa,get_materials,add_user,delete_user,get_all_users,log_quiz_result,get_qa_logs,get_quiz_results,export_quiz_csv,get_subjects,get_user_subjects,assign_user_subject,remove_user_subject,create_quiz,assign_quiz_to_students,get_teacher_quizzes,get_student_quizzes,get_quiz_by_id,update_quiz_score,get_db_connection,get_non_indexed_materials,update_material_indexed_status,get_subjects_with_counts
 from auth import login_required,admin_required,teacher_required,login_user,logout_user,get_current_user
 from rag import SmartStudyRAG
 from PIL import Image
@@ -40,7 +40,12 @@ def init_rag_system():
 def index():
 	if 'user_id' in session:
 		user=get_current_user()
-		return redirect(url_for('student_quizzes') if user['role']=='student' else 'upload')
+		if user['role']=='admin':
+			return redirect(url_for('admin_dashboard'))
+		elif user['role']=='teacher':
+			return redirect(url_for('teacher_dashboard'))
+		else:
+			return redirect(url_for('student_quizzes'))
 	return redirect(url_for('login'))
 
 @app.route('/login',methods=['GET','POST'])
@@ -146,6 +151,10 @@ def reindex_files():
 @app.route('/chat',methods=['GET','POST'])
 @login_required
 def chat():
+	user=get_current_user()
+	if user['role']=='admin':
+		flash('Admins do not have access to chat.','error')
+		return redirect(url_for('admin_dashboard'))
 	global rag_system
 	init_rag_system()
 	if rag_system is None or not rag_system.chunks:
@@ -211,6 +220,46 @@ def admin():
 	users,subjects=get_all_users(),get_subjects()
 	return render_template('admin.html',users=users,all_subjects=subjects)
 
+@app.route('/edit_user/<int:user_id>',methods=['GET','POST'])
+@admin_required
+def edit_user(user_id):
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	if request.method=='POST':
+		username,role,subject_ids=request.form['username'],request.form['role'],request.form.getlist('subject_ids')
+		password=request.form.get('password','').strip()
+		try:
+			# Update username and role
+			cursor.execute('UPDATE users SET username = ?, role = ? WHERE id = ?',(username,role,user_id))
+			# Update password if provided
+			if password:
+				password_hash=hashlib.sha256(password.encode()).hexdigest()
+				cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?',(password_hash,user_id))
+			# Update subjects - remove all and add new ones
+			cursor.execute('DELETE FROM user_subjects WHERE user_id = ?',(user_id,))
+			if subject_ids and role in ['student','teacher']:
+				for subject_id in subject_ids:
+					assign_user_subject(user_id,subject_id)
+			conn.commit()
+			flash(f'User {username} updated successfully!','success')
+			return redirect(url_for('admin'))
+		except Exception as e:
+			flash(f'Error updating user: {str(e)}','error')
+		finally:
+			conn.close()
+	# GET request - show edit form
+	cursor.execute('SELECT id, username, role FROM users WHERE id = ?',(user_id,))
+	user=cursor.fetchone()
+	if not user:
+		flash('User not found.','error')
+		conn.close()
+		return redirect(url_for('admin'))
+	user_dict={'id':user[0],'username':user[1],'role':user[2]}
+	user_subjects=get_user_subjects(user_id)
+	all_subjects=get_subjects()
+	conn.close()
+	return render_template('edit_user.html',user=user_dict,user_subjects=user_subjects,all_subjects=all_subjects)
+
 @app.route('/delete_user/<int:user_id>')
 @admin_required
 def delete_user_route(user_id):
@@ -234,39 +283,51 @@ def progress():
 @login_required
 def subjects():
 	user=get_current_user()
-	user_subjects,all_subjects=get_user_subjects(user['id']),get_subjects()
-	return render_template('subjects.html',user_subjects=user_subjects,all_subjects=all_subjects)
+	if user['role']=='admin':
+		flash('Admins do not have subjects.','error')
+		return redirect(url_for('admin_dashboard'))
+	# Users can only view their subjects, not assign them
+	user_subjects=get_user_subjects(user['id'])
+	return render_template('subjects.html',user_subjects=user_subjects,all_subjects=[],read_only=True)
 
 @app.route('/assign_subject',methods=['POST'])
-@login_required
+@admin_required
 def assign_subject():
-	user,action,subject_id=get_current_user(),request.form.get('action',''),request.form.get('subject_id')
-	if not subject_id:
-		flash('Subject ID is required.','error')
-		return redirect(url_for('subjects'))
-	try:subject_id=int(subject_id)
+	# Only admins can assign subjects now
+	user_id,subject_ids,action=request.form.get('user_id'),request.form.getlist('subject_ids'),request.form.get('action','assign')
+	if not user_id:
+		flash('User ID is required.','error')
+		return redirect(url_for('admin'))
+	try:user_id=int(user_id)
 	except ValueError:
-		flash('Invalid subject ID.','error')
-		return redirect(url_for('subjects'))
-	if action=='assign':
-		assign_user_subject(user['id'],subject_id)
-		flash('Subject assigned successfully!','success')
-	elif action=='remove':
-		remove_user_subject(user['id'],subject_id)
-		flash('Subject removed successfully!','success')
-	else:flash('Invalid action.','error')
-	return redirect(url_for('subjects'))
+		flash('Invalid user ID.','error')
+		return redirect(url_for('admin'))
+	# Remove all existing subjects for the user
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('DELETE FROM user_subjects WHERE user_id = ?',(user_id,))
+	# Add new subjects
+	for subject_id in subject_ids:
+		try:
+			subject_id=int(subject_id)
+			assign_user_subject(user_id,subject_id)
+		except ValueError:
+			continue
+	conn.commit()
+	conn.close()
+	flash('Subjects updated successfully!','success')
+	return redirect(request.referrer or url_for('admin'))
 
 @app.route('/create_quiz',methods=['GET','POST'])
 @teacher_required
 def create_quiz_route():
 	if request.method=='POST':
-		title,subject_id,description,num_questions=request.form['title'],request.form['subject_id'],request.form['description'],int(request.form.get('num_questions',5))
+		title,subject_id,description,num_questions,difficulty=request.form['title'],request.form['subject_id'],request.form['description'],int(request.form.get('num_questions',5)),request.form.get('difficulty','medium')
 		try:
 			init_rag_system()
-			quiz_questions=rag_system.generate_quiz(num_questions,description,subject_id)
+			quiz_questions=rag_system.generate_quiz(num_questions,description,subject_id,difficulty)
 			if quiz_questions:
-				quiz_id=create_quiz(title,subject_id,session['user_id'],quiz_questions)
+				quiz_id=create_quiz(title,subject_id,session['user_id'],quiz_questions,difficulty)
 				flash(f'Quiz "{title}" created successfully!','success')
 				return redirect(url_for('quiz_editor',quiz_id=quiz_id))
 			else:flash('Failed to generate quiz questions.','error')
@@ -309,6 +370,23 @@ def student_quizzes():
 		flash('Access denied.','error')
 		return redirect(url_for('index'))
 	quizzes=get_student_quizzes(user['id'])
+	
+	# Add completion status and scores to quizzes
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	for quiz in quizzes:
+		cursor.execute('SELECT id, score, time FROM quiz_results WHERE user_id = ? AND quiz_id = ? ORDER BY time DESC LIMIT 1',(user['id'],quiz['id']))
+		result=cursor.fetchone()
+		if result:
+			quiz['completed_time']=result[2]
+			quiz['score']=round(result[1],1)
+			quiz['result_id']=result[0]
+		else:
+			quiz['completed_time']=None
+			quiz['score']=None
+			quiz['result_id']=None
+	conn.close()
+	
 	return render_template('student_quizzes.html',quizzes=quizzes)
 
 @app.route('/take_quiz/<int:quiz_id>',methods=['GET','POST'])
@@ -322,6 +400,19 @@ def take_quiz(quiz_id):
 	if not quiz:
 		flash('Quiz not found.','error')
 		return redirect(url_for('student_quizzes'))
+	
+	# Check if student has already completed this quiz
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('SELECT id, score, time, answers FROM quiz_results WHERE user_id = ? AND quiz_id = ? ORDER BY time DESC LIMIT 1',(user['id'],quiz_id))
+	existing_result=cursor.fetchone()
+	conn.close()
+	
+	if existing_result:
+		# Quiz already completed - redirect to view results
+		flash('You have already completed this quiz. Viewing your results.','info')
+		return redirect(url_for('view_quiz_result',result_id=existing_result[0]))
+	
 	try:
 		questions=json.loads(quiz['questions']) if isinstance(quiz['questions'],str) else quiz['questions']
 	except (TypeError,json.JSONDecodeError):
@@ -335,30 +426,115 @@ def take_quiz(quiz_id):
 			if user_answer==correct_answer:correct_count+=1
 			answers.append({'question':question['question'],'user_answer':user_answer,'correct_answer':correct_answer,'is_correct':user_answer==correct_answer})
 		score=(correct_count/len(questions))*100
-		log_quiz_result(user['id'],score,answers,quiz_id)
+		result_id=log_quiz_result(user['id'],score,answers,quiz_id)
 		update_quiz_score(quiz_id,user['id'],score)
-		return render_template('quiz_results.html',quiz=quiz,score=score,total=len(questions),correct=correct_count,percentage=round(score,1),answers=answers)
+		return redirect(url_for('view_quiz_result',result_id=result_id))
 	return render_template('take_quiz.html',quiz=quiz,questions=questions)
 
-@app.route('/dashboard')
+@app.route('/view_quiz_result/<int:result_id>')
 @login_required
-def dashboard():
+def view_quiz_result(result_id):
 	user=get_current_user()
-	if user['role']=='admin':
-		stats,recent_activities=get_admin_stats(),get_recent_activities()
-	elif user['role']=='teacher':
-		stats,recent_activities=get_teacher_stats(user['id']),get_teacher_recent_activities(user['id'])
-	else:
-		flash('Access denied.','error')
-		return redirect(url_for('index'))
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('SELECT qr.*, q.title, q.questions FROM quiz_results qr JOIN quizzes q ON qr.quiz_id = q.id WHERE qr.id = ? AND qr.user_id = ?',(result_id,user['id']))
+	result=cursor.fetchone()
+	conn.close()
+	
+	if not result:
+		flash('Result not found.','error')
+		return redirect(url_for('student_quizzes'))
+	
+	quiz={'title':result[6]}
+	try:
+		answers=json.loads(result[4]) if isinstance(result[4],str) else result[4]
+		quiz_questions=json.loads(result[7]) if isinstance(result[7],str) else result[7]
+	except:
+		answers=result[4]
+		quiz_questions=result[7]
+	
+	# Enhance answers with full question data
+	for i,answer in enumerate(answers):
+		if i<len(quiz_questions):
+			answer['options']=quiz_questions[i].get('options',[])
+	
+	score=result[3]
+	correct=sum(1 for a in answers if a.get('is_correct',False))
+	total=len(answers)
+	percentage=round(score,1)
+	
+	return render_template('quiz_results.html',quiz=quiz,score=score,total=total,correct=correct,percentage=percentage,answers=answers,quiz_questions=quiz_questions)
+
+@app.route('/explain_question',methods=['POST'])
+@login_required
+def explain_question():
+	data=request.json
+	question=data.get('question','')
+	options=data.get('options',[])
+	correct_answer=data.get('correct_answer','')
+	user_answer=data.get('user_answer','')
+	
+	if not question:
+		return jsonify({'success':False,'error':'Question is required'})
+	
+	try:
+		global rag_system
+		init_rag_system()
+		
+		# Create prompt for explanation
+		options_text='\n'.join([f"{chr(65+i)}) {opt}" for i,opt in enumerate(options)])
+		prompt=f"""Explain this quiz question and why the correct answer is right:
+
+Question: {question}
+
+Options:
+{options_text}
+
+Correct Answer: {correct_answer}
+{'Student answered: ' + user_answer if user_answer else ''}
+
+Please provide:
+1. A clear explanation of what the question is asking
+2. Why the correct answer ({correct_answer}) is correct
+3. Why the other options are incorrect (if applicable)
+4. Any key concepts the student should understand
+
+Keep your explanation concise but informative."""
+
+		rag_system.rate_limit()
+		response=rag_system.client.chat(
+			message=prompt,
+			model='command-a-03-2025',
+			preamble="You are a helpful educational assistant. Provide clear, concise explanations that help students understand quiz questions and answers.",
+			chat_history=[]
+		)
+		
+		explanation=response.text.strip()
+		return jsonify({'success':True,'explanation':explanation})
+	except Exception as e:
+		return jsonify({'success':False,'error':str(e)})
+
+@app.route('/admin_dashboard')
+@admin_required
+def admin_dashboard():
+	user=get_current_user()
+	stats,recent_activities=get_admin_stats(),get_recent_activities()
 	user_distribution,performance_data,subject_activity,time_series_data,score_distribution=get_user_distribution(),get_performance_data(),get_subject_activity(),get_time_series_data(),get_score_distribution()
-	return render_template('dashboard.html',user=user,stats=stats,recent_activities=recent_activities,user_distribution=user_distribution,performance_data=performance_data,subject_activity=subject_activity,time_series_data=time_series_data,score_distribution=score_distribution)
+	return render_template('admin_dashboard.html',user=user,stats=stats,recent_activities=recent_activities,user_distribution=user_distribution,performance_data=performance_data,subject_activity=subject_activity,time_series_data=time_series_data,score_distribution=score_distribution)
+
+@app.route('/teacher_dashboard')
+@teacher_required
+def teacher_dashboard():
+	user=get_current_user()
+	stats,recent_activities=get_teacher_stats(user['id']),get_teacher_recent_activities(user['id'])
+	user_distribution,performance_data,subject_activity,time_series_data,score_distribution=get_user_distribution(),get_performance_data(),get_subject_activity(),get_time_series_data(),get_score_distribution()
+	return render_template('teacher_dashboard.html',user=user,stats=stats,recent_activities=recent_activities,user_distribution=user_distribution,performance_data=performance_data,subject_activity=subject_activity,time_series_data=time_series_data,score_distribution=score_distribution)
 
 @app.route('/profile')
 @login_required
 def profile():
 	user=get_current_user()
-	user_subjects=get_user_subjects(user['id'])
+	user_subjects=[] if user['role']=='admin' else get_user_subjects(user['id'])
 	return render_template('profile.html',user=user,user_subjects=user_subjects)
 
 @app.route('/change_password',methods=['POST'])
@@ -386,7 +562,7 @@ def change_password():
 @app.route('/manage_subjects')
 @admin_required
 def manage_subjects():
-	subjects=get_subjects()
+	subjects=get_subjects_with_counts()
 	return render_template('manage_subjects.html',subjects=subjects)
 
 @app.route('/add_subject',methods=['POST'])
@@ -406,25 +582,27 @@ def add_subject():
 @app.route('/edit_subject/<int:subject_id>',methods=['GET','POST'])
 @admin_required
 def edit_subject(subject_id):
+	conn=get_db_connection()
+	cursor=conn.cursor()
 	if request.method=='POST':
 		name=request.form['name'].strip()
 		if name:
-			conn=get_db_connection()
-			cursor=conn.cursor()
-			cursor.execute('UPDATE subjects SET name = ? WHERE id = ?',(name,subject_id))
-			conn.commit()
-			conn.close()
-			flash(f'Subject updated successfully!','success')
-			return redirect(url_for('manage_subjects'))
+			try:
+				cursor.execute('UPDATE subjects SET name = ? WHERE id = ?',(name,subject_id))
+				conn.commit()
+				conn.close()
+				flash(f'Subject updated successfully!','success')
+				return redirect(url_for('manage_subjects'))
+			except Exception as e:
+				flash(f'Error updating subject: {str(e)}','error')
 		else:flash('Subject name cannot be empty.','error')
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('SELECT * FROM subjects WHERE id = ?',(subject_id,))
-	subject=cursor.fetchone()
+	cursor.execute('SELECT id, name FROM subjects WHERE id = ?',(subject_id,))
+	subject_row=cursor.fetchone()
 	conn.close()
-	if not subject:
+	if not subject_row:
 		flash('Subject not found.','error')
 		return redirect(url_for('manage_subjects'))
+	subject={'id':subject_row[0],'name':subject_row[1]}
 	return render_template('edit_subject.html',subject=subject)
 
 @app.route('/delete_subject/<int:subject_id>')
@@ -495,6 +673,9 @@ def regenerate_quiz(quiz_id):
 @login_required
 def notes():
 	user=get_current_user()
+	if user['role']=='admin':
+		flash('Admins do not have access to notes.','error')
+		return redirect(url_for('admin_dashboard'))
 	conn=get_db_connection()
 	cursor=conn.cursor()
 	cursor.execute('SELECT * FROM notes WHERE user_id = ? ORDER BY created_at DESC',(user['id'],))
@@ -507,6 +688,8 @@ def notes():
 @login_required
 def create_note():
 	user=get_current_user()
+	if user['role']=='admin':
+		return jsonify({'success':False,'error':'Admins do not have access to notes'})
 	title,content,subject_id=request.json.get('title',''),request.json.get('content',''),request.json.get('subject_id')
 	if not title or not content:
 		return jsonify({'success':False,'error':'Title and content are required'})
@@ -524,6 +707,8 @@ def create_note():
 @login_required
 def update_note(note_id):
 	user=get_current_user()
+	if user['role']=='admin':
+		return jsonify({'success':False,'error':'Admins do not have access to notes'})
 	conn=get_db_connection()
 	cursor=conn.cursor()
 	cursor.execute('SELECT user_id FROM notes WHERE id = ?',(note_id,))
@@ -545,6 +730,8 @@ def update_note(note_id):
 @login_required
 def delete_note(note_id):
 	user=get_current_user()
+	if user['role']=='admin':
+		return jsonify({'success':False,'error':'Admins do not have access to notes'})
 	conn=get_db_connection()
 	cursor=conn.cursor()
 	cursor.execute('SELECT user_id FROM notes WHERE id = ?',(note_id,))
@@ -670,7 +857,9 @@ def get_subject_activity():
 	conn=get_db_connection()
 	cursor=conn.cursor()
 	cursor.execute('''SELECT s.name, COUNT(q.id) as quiz_count FROM subjects s LEFT JOIN quizzes q ON s.id = q.subject_id GROUP BY s.id, s.name ORDER BY quiz_count DESC''')
-	labels,values=[name for name,count in cursor.fetchall()],[count for name,count in cursor.fetchall()]
+	results=cursor.fetchall()
+	labels=[name for name,count in results]
+	values=[count for name,count in results]
 	conn.close()
 	return {'labels':labels,'values':values}
 

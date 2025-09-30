@@ -32,6 +32,19 @@
             </div>
             
             <div>
+                <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Difficulty Level</label>
+                <select name="difficulty" required class="google-input">
+                    <option value="easy">🟢 Easy - Basic concepts and simple recall</option>
+                    <option value="medium" selected>🟡 Medium - Applied understanding and analysis</option>
+                    <option value="hard">🔴 Hard - Complex reasoning and critical thinking</option>
+                </select>
+                <p style="margin: 8px 0 0 0; color: #5f6368; font-size: 12px;">
+                    <span class="material-icons" style="font-size: 14px; vertical-align: middle;">info</span>
+                    The AI will adjust question complexity based on this level
+                </p>
+            </div>
+            
+            <div>
                 <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Quiz Description</label>
                 <textarea name="description" required placeholder="Describe what this quiz should cover (e.g., 'Create questions about photosynthesis, cell structure, and energy flow')"
                           class="google-input" style="height: 100px; resize: vertical;"></textarea>

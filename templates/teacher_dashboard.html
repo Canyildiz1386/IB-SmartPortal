@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard{% endblock %}
-{% block page_title %}Dashboard{% endblock %}
+{% block title %}Teacher Dashboard{% endblock %}
+{% block page_title %}Teacher Dashboard{% endblock %}
 
 {% block content %}
 <!-- Welcome Section -->
@@ -10,14 +10,13 @@
         <span class="material-icons" style="font-size: 40px; color: white;">dashboard</span>
     </div>
     <h1 style="margin: 0 0 12px 0; font-size: 32px; font-weight: 600; color: #202124;">Welcome back, {{ user.username }}!</h1>
-    <p style="margin: 0; color: #5f6368; font-size: 18px; font-weight: 400;">Here's what's happening in your study portal</p>
+    <p style="margin: 0; color: #5f6368; font-size: 18px; font-weight: 400;">Here's what's happening in your classroom</p>
 </div>
 
 <!-- Quick Actions -->
 <div style="margin-bottom: 40px;">
     <h2 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #202124;">Quick Actions</h2>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
-        {% if user.role == 'teacher' %}
         <div onclick="window.location.href='{{ url_for('upload') }}'" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';">
             <div style="width: 48px; height: 48px; background: #1a73e8; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
                 <span class="material-icons" style="font-size: 24px; color: white;">cloud_upload</span>
@@ -25,14 +24,13 @@
             <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600; color: #202124;">Upload Materials</h3>
             <p style="margin: 0; color: #5f6368; font-size: 14px;">Add new study materials</p>
         </div>
-        {% endif %}
         
         <div onclick="window.location.href='{{ url_for('chat') }}'" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';">
             <div style="width: 48px; height: 48px; background: #34a853; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
                 <span class="material-icons" style="font-size: 24px; color: white;">chat</span>
             </div>
             <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600; color: #202124;">AI Chat</h3>
-            <p style="margin: 0; color: #5f6368; font-size: 14px;">Ask questions about your materials</p>
+            <p style="margin: 0; color: #5f6368; font-size: 14px;">Ask questions about materials</p>
         </div>
         
         <div onclick="window.location.href='{{ url_for('notes') }}'" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';">
@@ -40,18 +38,9 @@
                 <span class="material-icons" style="font-size: 24px; color: white;">note</span>
             </div>
             <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600; color: #202124;">Notes</h3>
-            <p style="margin: 0; color: #5f6368; font-size: 14px;">Create and manage your notes</p>
+            <p style="margin: 0; color: #5f6368; font-size: 14px;">Create and manage notes</p>
         </div>
         
-        {% if user.role == 'student' %}
-        <div onclick="window.location.href='{{ url_for('student_quizzes') }}'" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';">
-            <div style="width: 48px; height: 48px; background: #ea4335; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
-                <span class="material-icons" style="font-size: 24px; color: white;">quiz</span>
-            </div>
-            <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600; color: #202124;">My Quizzes</h3>
-            <p style="margin: 0; color: #5f6368; font-size: 14px;">Take assigned quizzes</p>
-        </div>
-        {% elif user.role == 'teacher' %}
         <div onclick="window.location.href='{{ url_for('create_quiz_route') }}'" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';">
             <div style="width: 48px; height: 48px; background: #9c27b0; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
                 <span class="material-icons" style="font-size: 24px; color: white;">add_circle</span>
@@ -59,6 +48,7 @@
             <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600; color: #202124;">Create Quiz</h3>
             <p style="margin: 0; color: #5f6368; font-size: 14px;">Generate new quizzes</p>
         </div>
+        
         <div onclick="window.location.href='{{ url_for('my_quizzes') }}'" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';">
             <div style="width: 48px; height: 48px; background: #ea4335; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
                 <span class="material-icons" style="font-size: 24px; color: white;">assignment</span>
@@ -66,13 +56,20 @@
             <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600; color: #202124;">My Quizzes</h3>
             <p style="margin: 0; color: #5f6368; font-size: 14px;">Manage your quizzes</p>
         </div>
-        {% endif %}
+        
+        <div onclick="window.location.href='{{ url_for('progress') }}'" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';">
+            <div style="width: 48px; height: 48px; background: #00acc1; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                <span class="material-icons" style="font-size: 24px; color: white;">analytics</span>
+            </div>
+            <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600; color: #202124;">Student Progress</h3>
+            <p style="margin: 0; color: #5f6368; font-size: 14px;">View student analytics</p>
+        </div>
     </div>
 </div>
 
 <!-- Statistics -->
 <div style="margin-bottom: 40px;">
-    <h2 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #202124;">Overview</h2>
+    <h2 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #202124;">Teaching Overview</h2>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
         {% for stat_name, stat_value in stats.items() %}
         <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
@@ -85,10 +82,10 @@
 
 <!-- Recent Activity -->
 <div style="margin-bottom: 40px;">
-    <h2 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #202124;">Recent Activity</h2>
+    <h2 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #202124;">Recent Student Activity</h2>
     {% if recent_activities %}
     <div style="background: white; border-radius: 16px; border: 1px solid #e8eaed; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-        {% for activity in recent_activities[:5] %}
+        {% for activity in recent_activities[:10] %}
         <div style="padding: 20px; border-bottom: 1px solid #f1f3f4; display: flex; align-items: center; gap: 16px;">
             <div style="width: 40px; height: 40px; background: #1a73e8; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
                 <span class="material-icons" style="font-size: 20px; color: white;">quiz</span>
@@ -106,37 +103,16 @@
             <span class="material-icons" style="font-size: 32px; color: #5f6368;">timeline</span>
         </div>
         <h3 style="margin: 0 0 8px 0; color: #5f6368; font-size: 18px; font-weight: 500;">No recent activity</h3>
-        <p style="margin: 0; color: #5f6368; font-size: 14px;">Activity will appear here as users interact with the platform</p>
+        <p style="margin: 0; color: #5f6368; font-size: 14px;">Student activity will appear here as they complete quizzes</p>
     </div>
     {% endif %}
 </div>
 
-<!-- Performance Charts (Admin/Teacher only) -->
-{% if user.role in ['admin', 'teacher'] %}
+<!-- Performance Charts -->
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px;">
-    <!-- User Distribution -->
-    <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-        <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #202124;">User Distribution</h3>
-        <div style="display: flex; flex-direction: column; gap: 16px;">
-            {% for i in range(user_distribution['labels']|length) %}
-            {% set label = user_distribution['labels'][i] %}
-            {% set value = user_distribution['values'][i] %}
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="color: #5f6368; font-size: 14px; font-weight: 500;">{{ label }}</span>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 120px; height: 8px; background: #f1f3f4; border-radius: 4px; overflow: hidden;">
-                        <div style="width: {{ (value / (user_distribution['values']|max) * 100) if (user_distribution['values']|max) > 0 else 0 }}%; height: 100%; background: #1a73e8; transition: width 0.8s ease;"></div>
-                    </div>
-                    <span style="color: #202124; font-size: 14px; font-weight: 600; min-width: 30px; text-align: right;">{{ value }}</span>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-
     <!-- Performance Data -->
     <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-        <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #202124;">Performance Overview</h3>
+        <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #202124;">Student Performance</h3>
         <div style="display: flex; flex-direction: column; gap: 16px;">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #f8f9fa; border-radius: 12px;">
                 <span style="color: #5f6368; font-size: 14px; font-weight: 500;">Average Score</span>
@@ -146,8 +122,43 @@
                 <span style="color: #5f6368; font-size: 14px; font-weight: 500;">Total Attempts</span>
                 <span style="color: #202124; font-size: 24px; font-weight: 700;">{{ performance_data.total_attempts }}</span>
             </div>
+            <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px; background: #f8f9fa; border-radius: 12px;">
+                <span style="color: #5f6368; font-size: 14px; font-weight: 500;">Performance Breakdown</span>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #34a853; font-size: 12px;">High (80%+): {{ performance_data.values[0] }}</span>
+                    <span style="color: #fbbc04; font-size: 12px;">Medium (60-79%): {{ performance_data.values[1] }}</span>
+                    <span style="color: #ea4335; font-size: 12px;">Low (<60%): {{ performance_data.values[2] }}</span>
+                </div>
+            </div>
         </div>
     </div>
+
+    <!-- Score Distribution -->
+    <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #202124;">Score Distribution</h3>
+        {% if score_distribution['values'] and score_distribution['values']|length > 0 %}
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            {% set max_value = score_distribution['values']|max %}
+            {% for i in range(score_distribution.labels|length) %}
+            {% set label = score_distribution.labels[i] %}
+            {% set value = score_distribution['values'][i] %}
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #5f6368; font-size: 14px; font-weight: 500;">{{ label }}</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 100px; height: 8px; background: #f1f3f4; border-radius: 4px; overflow: hidden;">
+                        <div style="width: {{ (value / max_value * 100) if max_value > 0 else 0 }}%; height: 100%; background: #34a853; transition: width 0.8s ease;"></div>
+                    </div>
+                    <span style="color: #202124; font-size: 14px; font-weight: 600; min-width: 30px; text-align: right;">{{ value }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 32px;">
+            <span class="material-icons" style="font-size: 48px; color: #dadce0;">bar_chart</span>
+            <p style="margin: 12px 0 0 0; color: #5f6368; font-size: 14px;">No quiz data yet</p>
+        </div>
+        {% endif %}
+    </div>
 </div>
-{% endif %}
 {% endblock %}

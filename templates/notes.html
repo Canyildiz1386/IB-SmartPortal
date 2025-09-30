@@ -20,6 +20,28 @@
     }
 }
 
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: scale(1.2);
+    }
+}
+
 .markdown-content img {
     max-width: 100%;
     height: auto;
@@ -302,71 +324,125 @@ function handleImageUpload(event) {
     event.target.value = '';
 }
 
+let recognition = null;
+
 function toggleVoiceInput() {
     if (!isRecording) {
-        startVoiceRecording();
+        startVoiceInput();
     } else {
-        stopVoiceRecording();
+        stopVoiceInput();
     }
 }
 
-function startVoiceRecording() {
-    navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(stream => {
-            mediaRecorder = new MediaRecorder(stream);
-            audioChunks = [];
-            
-            mediaRecorder.ondataavailable = event => {
-                audioChunks.push(event.data);
-            };
-            
-            mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                sendAudioToServer(audioBlob);
-                stream.getTracks().forEach(track => track.stop());
-            };
-            
-            mediaRecorder.start();
-            isRecording = true;
-            
-            const btn = document.getElementById('voiceInputBtn');
-            btn.innerHTML = '<span class="material-icons" style="font-size: 16px; margin-right: 4px;">stop</span>Stop Recording';
-            btn.style.background = '#ea4335';
-        })
-        .catch(err => {
-            console.error('Error accessing microphone:', err);
-            alert('Error accessing microphone');
-        });
-}
-
-function stopVoiceRecording() {
-    if (mediaRecorder && isRecording) {
-        mediaRecorder.stop();
-        isRecording = false;
-        
-        const btn = document.getElementById('voiceInputBtn');
-        btn.innerHTML = '<span class="material-icons" style="font-size: 16px; margin-right: 4px;">mic</span>Voice Input';
-        btn.style.background = '';
+function startVoiceInput() {
+    // Check if browser supports Web Speech API
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        alert('Sorry, your browser does not support real-time speech recognition.\n\nPlease use:\n• Chrome\n• Edge\n• Safari');
+        return;
     }
-}
-
-function sendAudioToServer(audioBlob) {
-    const formData = new FormData();
-    formData.append('audio', audioBlob);
     
-    fetch('/voice_to_text', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const textarea = document.getElementById('noteContent');
-            textarea.value += data.text + ' ';
-        } else {
-            alert('Error converting speech to text');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    
+    // Configure for real-time recognition
+    recognition.continuous = true;  // Keep listening
+    recognition.interimResults = true;  // Show interim results in real-time
+    recognition.lang = 'en-US';  // Set language
+    
+    const voiceBtn = document.getElementById('voiceInputBtn');
+    const textarea = document.getElementById('noteContent');
+    
+    recognition.onstart = function() {
+        isRecording = true;
+        voiceBtn.innerHTML = '<span class="material-icons" style="font-size: 16px; margin-right: 4px; animation: pulse 1.5s infinite;">mic</span>Stop Recording';
+        voiceBtn.style.background = '#ea4335';
+        voiceBtn.style.color = 'white';
+        
+        // Show real-time recording indicator
+        const indicator = document.createElement('div');
+        indicator.id = 'voiceIndicator';
+        indicator.style.cssText = 'position: fixed; top: 24px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #ea4335, #d32f2f); color: white; padding: 14px 24px; border-radius: 24px; box-shadow: 0 4px 16px rgba(234, 67, 53, 0.4); z-index: 10001; display: flex; align-items: center; gap: 12px; animation: slideDown 0.3s;';
+        indicator.innerHTML = `
+            <div style="width: 10px; height: 10px; background: white; border-radius: 50%; animation: pulse 1.5s infinite;"></div>
+            <span style="font-weight: 600; font-size: 14px;">🎤 Listening... Speak now</span>
+        `;
+        document.body.appendChild(indicator);
+    };
+    
+    recognition.onresult = function(event) {
+        let interim = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            
+            if (event.results[i].isFinal) {
+                // Final result - add to textarea
+                const cursorPos = textarea.selectionStart || textarea.value.length;
+                const textBefore = textarea.value.substring(0, cursorPos);
+                const textAfter = textarea.value.substring(cursorPos);
+                textarea.value = textBefore + transcript + ' ' + textAfter;
+                textarea.selectionStart = textarea.selectionEnd = cursorPos + transcript.length + 1;
+                textarea.focus();
+            } else {
+                // Interim result - show in indicator
+                interim = transcript;
+                const indicator = document.getElementById('voiceIndicator');
+                if (indicator && interim) {
+                    indicator.innerHTML = `
+                        <div style="width: 10px; height: 10px; background: white; border-radius: 50%; animation: pulse 1.5s infinite;"></div>
+                        <span style="font-weight: 600; font-size: 14px;">🎤 ${interim}...</span>
+                    `;
+                }
+            }
         }
-    });
+    };
+    
+    recognition.onerror = function(event) {
+        console.error('Speech recognition error:', event.error);
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+            stopVoiceInput();
+            alert('Speech recognition error: ' + event.error);
+        }
+    };
+    
+    recognition.onend = function() {
+        if (isRecording) {
+            // Auto-restart if still recording
+            try {
+                recognition.start();
+            } catch (e) {
+                stopVoiceInput();
+            }
+        }
+    };
+    
+    try {
+        recognition.start();
+    } catch (e) {
+        alert('Error starting speech recognition: ' + e);
+    }
+}
+
+function stopVoiceInput() {
+    if (recognition) {
+        isRecording = false;
+        recognition.stop();
+        recognition = null;
+        
+        const voiceBtn = document.getElementById('voiceInputBtn');
+        voiceBtn.innerHTML = '<span class="material-icons" style="font-size: 16px; margin-right: 4px;">mic</span>Voice Input';
+        voiceBtn.style.background = '';
+        voiceBtn.style.color = '';
+        
+        // Remove indicator with animation
+        const indicator = document.getElementById('voiceIndicator');
+        if (indicator) {
+            indicator.style.opacity = '0';
+            indicator.style.transform = 'translateX(-50%) translateY(-20px)';
+            indicator.style.transition = 'all 0.3s';
+            setTimeout(() => indicator.remove(), 300);
+        }
+    }
 }
 
 function extractTextFromImage() {

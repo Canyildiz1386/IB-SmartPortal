@@ -991,5 +991,5 @@ def handle_ready_for_connections(data):
 if __name__ == '__main__':
     init_db()
     get_rag_system()
-    port = int(os.environ.get('PORT', 2121))
+    port = int(os.environ.get('PORT', 8080))
     socketio.run(app, debug=False, host='0.0.0.0', port=port)

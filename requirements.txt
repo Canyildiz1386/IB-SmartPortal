@@ -1,4 +1,5 @@
 Flask
+flask-socketio
 cohere
 rank-bm25
 pypdf
@@ -8,3 +9,4 @@ werkzeug
 Pillow
 opencv-python
 deepface
+eventlet

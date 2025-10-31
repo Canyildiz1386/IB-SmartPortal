@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Study Together{% endblock %}
+
+{% block content %}
+<div style="max-width: 1400px; margin: 0 auto; padding: 24px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #1a73e8 0%, #34a853 100%); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);">
+                <span class="material-icons" style="font-size: 32px; color: white;">groups</span>
+            </div>
+            <div>
+                <h1 style="margin: 0 0 8px 0; font-size: 32px; font-weight: 600; color: #202124;">Study Together</h1>
+                <p style="margin: 0; color: #5f6368; font-size: 16px;">Join live study sessions with video, audio, and chat</p>
+            </div>
+        </div>
+        <a href="{{ url_for('create_session') }}" class="google-button" style="padding: 14px 24px; font-size: 16px; text-decoration: none;">
+            <span class="material-icons" style="font-size: 20px; margin-right: 8px;">add</span>
+            Create Session
+        </a>
+    </div>
+
+    {% if sessions %}
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 24px;">
+        {% for session in sessions %}
+        <div class="google-card" style="padding: 24px; cursor: pointer;" onclick="window.location.href='{{ url_for('study_session', session_id=session.id) }}'">
+            <div style="display: flex; align-items: start; justify-content: space-between; margin-bottom: 16px;">
+                <div style="flex: 1;">
+                    <h3 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 600; color: #202124;">{{ session.title }}</h3>
+                    {% if session.subject_name %}
+                    <span style="display: inline-block; padding: 4px 12px; background: #e8f0fe; color: #1a73e8; border-radius: 12px; font-size: 12px; font-weight: 500; margin-bottom: 8px;">{{ session.subject_name }}</span>
+                    {% endif %}
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; color: #5f6368; font-size: 14px;">
+                    <span class="material-icons" style="font-size: 18px;">people</span>
+                    <span>{{ session.participant_count }}/{{ session.max_participants }}</span>
+                </div>
+            </div>
+            {% if session.description %}
+            <p style="margin: 0 0 16px 0; color: #5f6368; font-size: 14px; line-height: 1.5;">{{ session.description }}</p>
+            {% endif %}
+            <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 16px; border-top: 1px solid #e8eaed;">
+                <div style="display: flex; align-items: center; gap: 8px; color: #5f6368; font-size: 13px;">
+                    <span class="material-icons" style="font-size: 16px;">person</span>
+                    <span>Host: {{ session.host_name }}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; color: #5f6368; font-size: 13px;">
+                    <span class="material-icons" style="font-size: 16px;">schedule</span>
+                    <span>{{ session.created_at }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="background: white; padding: 48px; border-radius: 16px; border: 1px solid #e8eaed; text-align: center;">
+        <span class="material-icons" style="font-size: 64px; color: #9aa0a6; margin-bottom: 16px;">groups</span>
+        <h2 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 600; color: #202124;">No Active Sessions</h2>
+        <p style="margin: 0 0 24px 0; color: #5f6368; font-size: 16px;">Be the first to create a study session!</p>
+        <a href="{{ url_for('create_session') }}" class="google-button" style="text-decoration: none;">
+            <span class="material-icons" style="font-size: 20px; margin-right: 8px;">add</span>
+            Create Session
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

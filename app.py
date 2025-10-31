@@ -1,5 +1,7 @@
 import os,uuid,json,hashlib,time
 from flask import Flask,render_template,request,redirect,url_for,session,flash,jsonify,make_response
+from flask_socketio import SocketIO,emit,join_room,leave_room
+from flask import session as flask_session
 from werkzeug.utils import secure_filename
 from db import init_db,verify_user,add_material,log_qa,get_materials,add_user,delete_user,get_all_users,log_quiz_result,get_qa_logs,get_quiz_results,export_quiz_csv,get_subjects,get_user_subjects,assign_user_subject,remove_user_subject,create_quiz,assign_quiz_to_students,get_teacher_quizzes,get_student_quizzes,get_quiz_by_id,update_quiz_score,get_db_connection,get_non_indexed_materials,update_material_indexed_status,get_subjects_with_counts,get_user_face_image,update_user_face_image,add_mood_tracking,get_user_mood_today,get_user_mood_history,get_all_student_moods,get_student_moods_by_teacher,get_all_users_with_faces
 from auth import login_required,admin_required,teacher_required,login_user,logout_user,get_current_user
@@ -9,6 +11,8 @@ from face_utils import prepare_uploaded_image,verify_face,analyze_mood,mood_emoj
 app=Flask(__name__)
 app.secret_key='IB-Smartportal'
 app.config['PERMANENT_SESSION_LIFETIME']=86400
+app.config['SECRET_KEY']='IB-Smartportal'
+socketio=SocketIO(app,cors_allowed_origins="*")
 
 @app.template_filter('emoji')
 def emoji_filter(mood):
@@ -1088,8 +1092,288 @@ def teacher_mood_tracking():
 	student_moods=get_student_moods_by_teacher(user['id'])
 	return render_template('teacher_mood_tracking.html',student_moods=student_moods)
 
+def create_study_session(host_id,title,subject_id=None,description='',max_participants=10):
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('INSERT INTO study_sessions (host_id, title, subject_id, description, max_participants) VALUES (?, ?, ?, ?, ?)',(host_id,title,subject_id,description,max_participants))
+	session_id=cursor.lastrowid
+	cursor.execute('INSERT INTO session_participants (session_id, user_id) VALUES (?, ?)',(session_id,host_id))
+	conn.commit()
+	conn.close()
+	return session_id
+
+def get_study_sessions(user_id=None,subject_id=None):
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	query='''SELECT s.*, u.username as host_name, sub.name as subject_name,
+		(SELECT COUNT(*) FROM session_participants WHERE session_id = s.id) as participant_count
+		FROM study_sessions s
+		JOIN users u ON s.host_id = u.id
+		LEFT JOIN subjects sub ON s.subject_id = sub.id
+		WHERE s.is_active = 1'''
+	params=[]
+	if subject_id:
+		query+=' AND s.subject_id = ?'
+		params.append(subject_id)
+	query+=' ORDER BY s.created_at DESC'
+	cursor.execute(query,tuple(params))
+	results=cursor.fetchall()
+	sessions=[]
+	for row in results:
+		sessions.append({
+			'id':row[0],'host_id':row[1],'title':row[2],'subject_id':row[3],
+			'description':row[4],'max_participants':row[5],'created_at':row[6],
+			'is_active':row[7],'host_name':row[8],'subject_name':row[9],'participant_count':row[10]
+		})
+	conn.close()
+	return sessions
+
+def get_session_participants(session_id):
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('''SELECT u.id, u.username, u.role, sp.joined_at
+		FROM session_participants sp
+		JOIN users u ON sp.user_id = u.id
+		WHERE sp.session_id = ?
+		ORDER BY sp.joined_at''',(session_id,))
+	participants=[{'id':row[0],'username':row[1],'role':row[2],'joined_at':row[3]} for row in cursor.fetchall()]
+	conn.close()
+	return participants
+
+def join_session(session_id,user_id):
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('INSERT OR IGNORE INTO session_participants (session_id, user_id) VALUES (?, ?)',(session_id,user_id))
+	conn.commit()
+	conn.close()
+
+def leave_session(session_id,user_id):
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('DELETE FROM session_participants WHERE session_id = ? AND user_id = ?',(session_id,user_id))
+	conn.commit()
+	conn.close()
+
+def add_session_message(session_id,user_id,message):
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('INSERT INTO session_messages (session_id, user_id, message) VALUES (?, ?, ?)',(session_id,user_id,message))
+	conn.commit()
+	conn.close()
+
+def get_session_messages(session_id,limit=50):
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('''SELECT sm.*, u.username, u.role
+		FROM session_messages sm
+		JOIN users u ON sm.user_id = u.id
+		WHERE sm.session_id = ?
+		ORDER BY sm.timestamp DESC
+		LIMIT ?''',(session_id,limit))
+	messages=[]
+	for row in cursor.fetchall():
+		messages.append({
+			'id':row[0],'session_id':row[1],'user_id':row[2],'message':row[3],
+			'timestamp':row[4],'username':row[5],'role':row[6]
+		})
+	conn.close()
+	return list(reversed(messages))
+
+@app.route('/study_together')
+@login_required
+def study_together():
+	user=get_current_user()
+	user_subjects=get_user_subjects(user['id']) if user['role'] in ['student','teacher'] else []
+	sessions=get_study_sessions()
+	return render_template('study_together.html',sessions=sessions,user_subjects=user_subjects,user=user)
+
+@app.route('/create_session',methods=['GET','POST'])
+@login_required
+def create_session():
+	if request.method=='POST':
+		user=get_current_user()
+		title=request.form['title']
+		subject_id=request.form.get('subject_id')
+		description=request.form.get('description','')
+		max_participants=int(request.form.get('max_participants',10))
+		try:
+			session_id=create_study_session(user['id'],title,subject_id,description,max_participants)
+			flash('Study session created successfully!','success')
+			return redirect(url_for('study_session',session_id=session_id))
+		except Exception as e:
+			flash(f'Error creating session: {str(e)}','error')
+	user_subjects=get_user_subjects(session['user_id']) if session.get('role') in ['student','teacher'] else []
+	subjects=get_subjects()
+	return render_template('create_session.html',subjects=subjects,user_subjects=user_subjects)
+
+@app.route('/study_session/<int:session_id>')
+@login_required
+def study_session(session_id):
+	user=get_current_user()
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('''SELECT s.*, u.username as host_name, sub.name as subject_name
+		FROM study_sessions s
+		JOIN users u ON s.host_id = u.id
+		LEFT JOIN subjects sub ON s.subject_id = sub.id
+		WHERE s.id = ? AND s.is_active = 1''',(session_id,))
+	result=cursor.fetchone()
+	conn.close()
+	if not result:
+		flash('Session not found or inactive.','error')
+		return redirect(url_for('study_together'))
+	session_data={
+		'id':result[0],'host_id':result[1],'title':result[2],'subject_id':result[3],
+		'description':result[4],'max_participants':result[5],'created_at':result[6],
+		'is_active':result[7],'host_name':result[8],'subject_name':result[9]
+	}
+	participants=get_session_participants(session_id)
+	messages=get_session_messages(session_id)
+	join_session(session_id,user['id'])
+	return render_template('study_session.html',session=session_data,participants=participants,messages=messages,user=user)
+
+@socketio.on('join_session')
+def handle_join_session(data):
+	session_id=data.get('session_id')
+	user_id=flask_session.get('user_id')
+	if user_id and session_id:
+		join_room(f'session_{session_id}')
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('SELECT id, username, role FROM users WHERE id = ?',(user_id,))
+		user_row=cursor.fetchone()
+		conn.close()
+		if user_row:
+			user={'id':user_row[0],'username':user_row[1],'role':user_row[2]}
+			join_session(session_id,user_id)
+			participants=get_session_participants(session_id)
+			emit('user_joined',{'username':user['username'],'participants':participants},room=f'session_{session_id}')
+
+@socketio.on('leave_session')
+def handle_leave_session(data):
+	session_id=data.get('session_id')
+	user_id=flask_session.get('user_id')
+	if user_id and session_id:
+		leave_room(f'session_{session_id}')
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('SELECT id, username, role FROM users WHERE id = ?',(user_id,))
+		user_row=cursor.fetchone()
+		conn.close()
+		if user_row:
+			user={'id':user_row[0],'username':user_row[1],'role':user_row[2]}
+			leave_session(session_id,user_id)
+			participants=get_session_participants(session_id)
+			emit('user_left',{'username':user['username'],'participants':participants},room=f'session_{session_id}')
+
+@socketio.on('send_message')
+def handle_message(data):
+	session_id=data.get('session_id')
+	user_id=flask_session.get('user_id')
+	message=data.get('message','')
+	if user_id and session_id and message:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('SELECT id, username, role FROM users WHERE id = ?',(user_id,))
+		user_row=cursor.fetchone()
+		conn.close()
+		if user_row:
+			user={'id':user_row[0],'username':user_row[1],'role':user_row[2]}
+			if message.startswith('/ai '):
+				question=message[4:].strip()
+				if question:
+					try:
+						init_rag_system()
+						if rag_system and rag_system.chunks:
+							answer,results=rag_system.query(question,top_k=3)
+							log_qa(user_id,question,answer)
+							add_session_message(session_id,user_id,f'/ai {question}')
+							emit('new_message',{
+								'username':user['username'],
+								'role':user['role'],
+								'message':f'/ai {question}',
+								'timestamp':time.time()
+							},room=f'session_{session_id}')
+							emit('ai_response',{
+								'username':user['username'],
+								'question':question,
+								'answer':answer,
+								'timestamp':time.time()
+							},room=f'session_{session_id}')
+						else:
+							add_session_message(session_id,user_id,message)
+							emit('new_message',{
+								'username':user['username'],
+								'role':user['role'],
+								'message':message,
+								'timestamp':time.time()
+							},room=f'session_{session_id}')
+							emit('ai_response',{
+								'username':user['username'],
+								'question':question,
+								'answer':'No study materials indexed yet. Please upload materials first.',
+								'timestamp':time.time()
+							},room=f'session_{session_id}')
+					except Exception as e:
+						add_session_message(session_id,user_id,message)
+						emit('new_message',{
+							'username':user['username'],
+							'role':user['role'],
+							'message':message,
+							'timestamp':time.time()
+						},room=f'session_{session_id}')
+						emit('ai_response',{
+							'username':user['username'],
+							'question':question,
+							'answer':f'Error: {str(e)}',
+							'timestamp':time.time()
+						},room=f'session_{session_id}')
+				else:
+					add_session_message(session_id,user_id,message)
+					emit('new_message',{
+						'username':user['username'],
+						'role':user['role'],
+						'message':message,
+						'timestamp':time.time()
+					},room=f'session_{session_id}')
+			else:
+				add_session_message(session_id,user_id,message)
+				emit('new_message',{
+					'username':user['username'],
+					'role':user['role'],
+					'message':message,
+					'timestamp':time.time()
+				},room=f'session_{session_id}')
+
+@socketio.on('offer')
+def handle_offer(data):
+	user_id=flask_session.get('user_id')
+	if user_id:
+		data['user_id']=user_id
+		emit('offer',data,room=f'session_{data["session_id"]}',include_self=False)
+
+@socketio.on('answer')
+def handle_answer(data):
+	user_id=flask_session.get('user_id')
+	if user_id:
+		data['user_id']=user_id
+		emit('answer',data,room=f'session_{data["session_id"]}',include_self=False)
+
+@socketio.on('ice_candidate')
+def handle_ice_candidate(data):
+	user_id=flask_session.get('user_id')
+	if user_id:
+		data['user_id']=user_id
+		emit('ice_candidate',data,room=f'session_{data["session_id"]}',include_self=False)
+
+@socketio.on('ready_for_connections')
+def handle_ready_for_connections(data):
+	user_id=flask_session.get('user_id')
+	if user_id:
+		emit('ready_for_connections',{'user_id':user_id,'session_id':data.get('session_id')},room=f'session_{data.get("session_id")}',include_self=False)
+
 if __name__=='__main__':
 	init_db()
 	init_rag_system()
 	port=int(os.environ.get('PORT',2121))
-	app.run(debug=False,host='0.0.0.0',port=port)
+	socketio.run(app,debug=False,host='0.0.0.0',port=port)

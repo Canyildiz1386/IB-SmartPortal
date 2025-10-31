@@ -585,10 +585,16 @@
                             <span class="material-icons nav-item-icon">chat</span>
                             AI Chat
                         </a>
+                        <a href="{{ url_for('study_together') }}" class="nav-item">
+                            <span class="material-icons nav-item-icon">groups</span>
+                            Study Together
+                        </a>
+                        {% if session.role == 'teacher' %}
                         <a href="{{ url_for('notes') }}" class="nav-item">
                             <span class="material-icons nav-item-icon">note</span>
                             Notes
                         </a>
+                        {% endif %}
                     </div>
                     {% endif %}
                     

@@ -39,6 +39,12 @@ def init_db():
 	except:pass
 	
 	cursor.execute('''CREATE TABLE IF NOT EXISTS mood_tracking (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,date DATE NOT NULL,mood TEXT NOT NULL,age INTEGER,gender TEXT,race TEXT,login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY (user_id) REFERENCES users (id),UNIQUE(user_id, date))''')
+	
+	cursor.execute('''CREATE TABLE IF NOT EXISTS study_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT,host_id INTEGER NOT NULL,title TEXT NOT NULL,subject_id INTEGER,description TEXT,max_participants INTEGER DEFAULT 10,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,is_active INTEGER DEFAULT 1,FOREIGN KEY (host_id) REFERENCES users (id),FOREIGN KEY (subject_id) REFERENCES subjects (id))''')
+	
+	cursor.execute('''CREATE TABLE IF NOT EXISTS session_participants (id INTEGER PRIMARY KEY AUTOINCREMENT,session_id INTEGER NOT NULL,user_id INTEGER NOT NULL,joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY (session_id) REFERENCES study_sessions (id),FOREIGN KEY (user_id) REFERENCES users (id),UNIQUE(session_id, user_id))''')
+	
+	cursor.execute('''CREATE TABLE IF NOT EXISTS session_messages (id INTEGER PRIMARY KEY AUTOINCREMENT,session_id INTEGER NOT NULL,user_id INTEGER NOT NULL,message TEXT NOT NULL,timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY (session_id) REFERENCES study_sessions (id),FOREIGN KEY (user_id) REFERENCES users (id))''')
     
 	cursor.execute('SELECT COUNT(*) FROM subjects')
 	if cursor.fetchone()[0]==0:

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Student Mood Tracking{% endblock %}
+
+{% block content %}
+<div style="max-width: 1400px; margin: 0 auto; padding: 24px;">
+    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
+        <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);">
+            <span class="material-icons" style="font-size: 32px; color: white;">mood</span>
+        </div>
+        <div>
+            <h1 style="margin: 0 0 8px 0; font-size: 32px; font-weight: 600; color: #202124;">Student Mood Tracking</h1>
+            <p style="margin: 0; color: #5f6368; font-size: 16px;">Monitor your students' emotional well-being</p>
+        </div>
+    </div>
+
+    {% if student_moods %}
+    <div style="background: white; padding: 32px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <h2 style="margin: 0; font-size: 24px; font-weight: 600; color: #202124;">Your Students' Moods ({{ student_moods|length }})</h2>
+        </div>
+        
+        <div style="display: grid; gap: 16px;">
+            {% for mood_entry in student_moods %}
+            <div style="display: flex; align-items: center; gap: 20px; padding: 20px; background: #f8f9fa; border-radius: 12px; border: 1px solid #e8eaed; transition: all 0.2s;" onmouseover="this.style.background='#e8f0fe'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.background='#f8f9fa'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                <div style="font-size: 48px;">{{ mood_entry.mood|emoji }}</div>
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                        <h3 style="margin: 0; font-size: 20px; font-weight: 600; color: #202124;">{{ mood_entry.username }}</h3>
+                        <span style="padding: 4px 12px; background: {% if mood_entry.mood == 'happy' %}#34a853{% elif mood_entry.mood == 'sad' %}#1a73e8{% elif mood_entry.mood == 'angry' %}#ea4335{% elif mood_entry.mood == 'neutral' %}#9aa0a6{% else %}#fbbc04{% endif %}; color: white; border-radius: 12px; font-size: 12px; font-weight: 500;">{{ mood_entry.mood|title }}</span>
+                    </div>
+                    <div style="display: flex; gap: 16px; color: #5f6368; font-size: 14px;">
+                        <span><span class="material-icons" style="font-size: 16px; vertical-align: middle;">calendar_today</span> {{ mood_entry.date }}</span>
+                        {% if mood_entry.login_time %}
+                        <span><span class="material-icons" style="font-size: 16px; vertical-align: middle;">access_time</span> {{ mood_entry.login_time }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div style="background: white; padding: 48px; border-radius: 16px; border: 1px solid #e8eaed; text-align: center;">
+        <span class="material-icons" style="font-size: 64px; color: #9aa0a6; margin-bottom: 16px;">mood_bad</span>
+        <h2 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 600; color: #202124;">No Mood Data Available</h2>
+        <p style="margin: 0; color: #5f6368; font-size: 16px;">Your students haven't logged in with face recognition yet.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

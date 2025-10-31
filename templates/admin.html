@@ -19,7 +19,7 @@
         <div style="background: white; padding: 32px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1); height: fit-content;">
             <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #202124;">Add New User</h2>
             
-            <form method="POST" action="{{ url_for('admin') }}" style="display: flex; flex-direction: column; gap: 20px;">
+            <form method="POST" action="{{ url_for('admin') }}" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 20px;">
                 <div>
                     <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Username</label>
                     <input type="text" name="username" required placeholder="Enter username" class="google-input">
@@ -28,6 +28,38 @@
                 <div>
                     <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Password</label>
                     <input type="password" name="password" required placeholder="Enter password" class="google-input">
+                </div>
+                
+                <div>
+                    <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">
+                        Face Image
+                        <span style="color: #5f6368; font-weight: 400; font-size: 12px;">(optional - for face recognition login)</span>
+                    </label>
+                    <input type="file" name="face_image" accept="image/*" id="faceInputAdmin" style="display: none;">
+                    <div id="cameraContainerAdmin" style="display: none; margin-top: 12px;">
+                        <video id="videoAdmin" autoplay style="width: 100%; border-radius: 12px; background: #000; max-height: 300px;"></video>
+                        <div style="display: flex; gap: 12px; margin-top: 12px;">
+                            <button type="button" id="captureBtnAdmin" style="flex: 1; padding: 12px; background: #34a853; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
+                                <span class="material-icons" style="font-size: 20px; vertical-align: middle;">camera_alt</span>
+                                Capture
+                            </button>
+                            <button type="button" id="stopCameraBtnAdmin" style="flex: 1; padding: 12px; background: #ea4335; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
+                                <span class="material-icons" style="font-size: 20px; vertical-align: middle;">stop</span>
+                                Stop
+                            </button>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 12px; margin-top: 12px;">
+                        <button type="button" id="startCameraBtnAdmin" style="flex: 1; padding: 12px; background: #1a73e8; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
+                            <span class="material-icons" style="font-size: 20px; vertical-align: middle;">videocam</span>
+                            Use Camera
+                        </button>
+                        <button type="button" onclick="document.getElementById('faceInputAdmin').click()" style="flex: 1; padding: 12px; background: #f8f9fa; color: #202124; border: 1px solid #dadce0; border-radius: 8px; cursor: pointer; font-weight: 500;">
+                            <span class="material-icons" style="font-size: 20px; vertical-align: middle;">upload_file</span>
+                            Upload File
+                        </button>
+                    </div>
+                    <canvas id="canvasAdmin" style="display: none;"></canvas>
                 </div>
                 
                 <div>
@@ -129,6 +161,59 @@ document.getElementById('roleSelect').addEventListener('change', function() {
         subjectsSection.style.display = 'block';
     } else {
         subjectsSection.style.display = 'none';
+    }
+});
+
+let cameraStreamAdmin = null;
+
+document.getElementById('startCameraBtnAdmin').addEventListener('click', function() {
+    const video = document.getElementById('videoAdmin');
+    const cameraContainer = document.getElementById('cameraContainerAdmin');
+    const startBtn = document.getElementById('startCameraBtnAdmin');
+    
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+        .then(function(stream) {
+            cameraStreamAdmin = stream;
+            video.srcObject = stream;
+            cameraContainer.style.display = 'block';
+            startBtn.style.display = 'none';
+        })
+        .catch(function(err) {
+            alert('Error accessing camera: ' + err.message);
+        });
+});
+
+document.getElementById('stopCameraBtnAdmin').addEventListener('click', function() {
+    if (cameraStreamAdmin) {
+        cameraStreamAdmin.getTracks().forEach(track => track.stop());
+        cameraStreamAdmin = null;
+    }
+    document.getElementById('videoAdmin').srcObject = null;
+    document.getElementById('cameraContainerAdmin').style.display = 'none';
+    document.getElementById('startCameraBtnAdmin').style.display = 'flex';
+});
+
+document.getElementById('captureBtnAdmin').addEventListener('click', function() {
+    const video = document.getElementById('videoAdmin');
+    const canvas = document.getElementById('canvasAdmin');
+    const faceInput = document.getElementById('faceInputAdmin');
+    
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    canvas.toBlob(function(blob) {
+        const file = new File([blob], 'face.jpg', { type: 'image/jpeg' });
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        faceInput.files = dataTransfer.files;
+        alert('Photo captured! You can now submit the form.');
+        document.getElementById('stopCameraBtnAdmin').click();
+    }, 'image/jpeg', 0.95);
+});
+
+document.getElementById('faceInputAdmin').addEventListener('change', function(e) {
+    if (e.target.files.length > 0 && cameraStreamAdmin) {
+        document.getElementById('stopCameraBtnAdmin').click();
     }
 });
 </script>

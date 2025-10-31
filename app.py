@@ -1,17 +1,38 @@
 import os,uuid,json,hashlib,time
 from flask import Flask,render_template,request,redirect,url_for,session,flash,jsonify,make_response
 from werkzeug.utils import secure_filename
-from db import init_db,verify_user,add_material,log_qa,get_materials,add_user,delete_user,get_all_users,log_quiz_result,get_qa_logs,get_quiz_results,export_quiz_csv,get_subjects,get_user_subjects,assign_user_subject,remove_user_subject,create_quiz,assign_quiz_to_students,get_teacher_quizzes,get_student_quizzes,get_quiz_by_id,update_quiz_score,get_db_connection,get_non_indexed_materials,update_material_indexed_status,get_subjects_with_counts
+from db import init_db,verify_user,add_material,log_qa,get_materials,add_user,delete_user,get_all_users,log_quiz_result,get_qa_logs,get_quiz_results,export_quiz_csv,get_subjects,get_user_subjects,assign_user_subject,remove_user_subject,create_quiz,assign_quiz_to_students,get_teacher_quizzes,get_student_quizzes,get_quiz_by_id,update_quiz_score,get_db_connection,get_non_indexed_materials,update_material_indexed_status,get_subjects_with_counts,get_user_face_image,update_user_face_image,add_mood_tracking,get_user_mood_today,get_user_mood_history,get_all_student_moods,get_student_moods_by_teacher,get_all_users_with_faces
 from auth import login_required,admin_required,teacher_required,login_user,logout_user,get_current_user
 from rag import SmartStudyRAG
+from face_utils import prepare_uploaded_image,verify_face,analyze_mood,mood_emoji,get_mood_theme
 
 app=Flask(__name__)
 app.secret_key='IB-Smartportal'
 app.config['PERMANENT_SESSION_LIFETIME']=86400
+
+@app.template_filter('emoji')
+def emoji_filter(mood):
+	return mood_emoji(mood) if mood else '🙂'
+
+@app.template_filter('month_name')
+def month_name_filter(month_num):
+	months=['January','February','March','April','May','June','July','August','September','October','November','December']
+	return months[month_num-1] if 1<=month_num<=12 else 'Unknown'
+
+@app.context_processor
+def inject_mood_theme():
+	mood=session.get('user_mood')
+	if mood:
+		theme=get_mood_theme(mood)
+		return {'user_mood':mood,'mood_theme':theme}
+	return {'user_mood':None,'mood_theme':None}
 UPLOAD_FOLDER='uploads'
+USER_IMAGES_FOLDER='user_images'
 ALLOWED_EXTENSIONS={'pdf','txt'}
+ALLOWED_IMAGE_EXTENSIONS={'jpg','jpeg','png','gif'}
 MAX_FILE_SIZE=10*1024*1024
 os.makedirs(UPLOAD_FOLDER,exist_ok=True)
+os.makedirs(USER_IMAGES_FOLDER,exist_ok=True)
 rag_system=None
 
 def allowed_file(filename):return '.' in filename and filename.rsplit('.',1)[1].lower() in ALLOWED_EXTENSIONS
@@ -44,13 +65,49 @@ def index():
 @app.route('/login',methods=['GET','POST'])
 def login():
 	if request.method=='POST':
-		username,password=request.form['username'],request.form['password']
-		user=verify_user(username,password)
+		username=request.form.get('username','')
+		password=request.form.get('password','')
+		face_image=request.files.get('face_image')
+		user=None
+		if password and username:
+			user=verify_user(username,password)
+		elif face_image:
+			users_with_faces=get_all_users_with_faces()
+			if not users_with_faces:
+				flash('No users have registered face images. Please use password login.','error')
+				return render_template('login.html')
+			temp_folder=os.path.join(USER_IMAGES_FOLDER,'temp')
+			os.makedirs(temp_folder,exist_ok=True)
+			temp_image_path=os.path.join(temp_folder,'temp_login.jpg')
+			from PIL import Image
+			image=Image.open(face_image)
+			if image.mode=='RGBA':image=image.convert('RGB')
+			image.save(temp_image_path,format='JPEG')
+			matched_user=None
+			for user_data in users_with_faces:
+				if user_data['face_image'] and os.path.exists(user_data['face_image']):
+					if verify_face(user_data['face_image'],temp_image_path):
+						matched_user=user_data
+						break
+			if matched_user:
+				user={'id':matched_user['id'],'username':matched_user['username'],'role':matched_user['role']}
+				mood_data=analyze_mood(temp_image_path)
+				add_mood_tracking(user['id'],mood_data['mood'],mood_data['age'],mood_data['gender'],mood_data['race'])
+				session['user_mood']=mood_data['mood']
+			if os.path.exists(temp_image_path):os.remove(temp_image_path)
+			if not user:
+				flash('Face recognition failed. Your face does not match any registered user.','error')
 		if user:
 			login_user(user)
 			session.permanent=True
+			current_mood=get_user_mood_today(user['id'])
+			if current_mood:session['user_mood']=current_mood
 			return redirect(url_for('index'))
-		else:flash('Invalid username or password.','error')
+		else:
+			if not password and not face_image:
+				flash('Please provide either password or face image.','error')
+			elif not user:
+				flash('Invalid username, password, or face recognition failed.','error')
 	return render_template('login.html')
 
 @app.route('/logout')
@@ -225,9 +282,20 @@ def export_quiz():
 @admin_required
 def admin():
 	if request.method=='POST':
-		username,password,role,subject_ids=request.form['username'],request.form['password'],request.form['role'],request.form.getlist('subject_ids')
+		username,password,role,subject_ids=request.form['username'],request.form['password'],request.form['role'],request.getlist('subject_ids')
+		face_image=request.files.get('face_image')
+		face_image_path=None
+		if face_image and face_image.filename:
+			user_folder=os.path.join(USER_IMAGES_FOLDER,username)
+			os.makedirs(user_folder,exist_ok=True)
+			face_image_path=os.path.join(user_folder,f"{username}_face.jpg")
+			success,msg=prepare_uploaded_image(face_image,face_image_path)
+			if not success:
+				flash(f'Face image error: {msg}','error')
+				users,subjects=get_all_users(),get_subjects()
+				return render_template('admin.html',users=users,all_subjects=subjects)
 		try:
-			user_id=add_user(username,password,role)
+			user_id=add_user(username,password,role,face_image_path)
 			if subject_ids and role in ['student','teacher']:
 				for subject_id in subject_ids:assign_user_subject(user_id,subject_id)
 			flash(f'User {username} created successfully!','success')
@@ -243,11 +311,21 @@ def edit_user(user_id):
 		cursor=conn.cursor()
 		username,role,subject_ids=request.form['username'],request.form['role'],request.form.getlist('subject_ids')
 		password=request.form.get('password','').strip()
+		face_image=request.files.get('face_image')
 		try:
 			cursor.execute('UPDATE users SET username = ?, role = ? WHERE id = ?',(username,role,user_id))
 			if password:
 				password_hash=hashlib.sha256(password.encode()).hexdigest()
 				cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?',(password_hash,user_id))
+			if face_image and face_image.filename:
+				user_folder=os.path.join(USER_IMAGES_FOLDER,username)
+				os.makedirs(user_folder,exist_ok=True)
+				face_image_path=os.path.join(user_folder,f"{username}_face.jpg")
+				success,msg=prepare_uploaded_image(face_image,face_image_path)
+				if success:
+					cursor.execute('UPDATE users SET face_image = ? WHERE id = ?',(face_image_path,user_id))
+				else:
+					flash(f'Face image error: {msg}','error')
 			cursor.execute('DELETE FROM user_subjects WHERE user_id = ?',(user_id,))
 			if subject_ids and role in ['student','teacher']:
 				for subject_id in subject_ids:
@@ -971,6 +1049,44 @@ def get_teacher_subject_performance(teacher_id):
 	values=[round(avg_score,1) for name,avg_score in results]
 	conn.close()
 	return {'labels':labels,'values':values}
+
+@app.route('/mood_map')
+@login_required
+def mood_map():
+	user=get_current_user()
+	mood_history=get_user_mood_history(user['id'],limit=30)
+	from datetime import date,datetime
+	import calendar
+	now=datetime.now()
+	year,month=now.year,now.month
+	moods={d['date']:d['mood'] for d in mood_history}
+	cal=calendar.monthcalendar(year,month)
+	mood_days=[]
+	for week in cal:
+		week_moods=[]
+		for day in week:
+			if day==0:
+				week_moods.append("")
+			else:
+				dstr=f"{year}-{month:02d}-{day:02d}"
+				mood=moods.get(dstr)
+				week_moods.append(mood_emoji(mood) if mood else "")
+		mood_days.append(week_moods)
+	current_mood=get_user_mood_today(user['id'])
+	return render_template('mood_map.html',calendar=mood_days,year=year,month=month,current_mood=current_mood,mood_history=mood_history)
+
+@app.route('/admin/mood_tracking')
+@admin_required
+def admin_mood_tracking():
+	student_moods=get_all_student_moods()
+	return render_template('admin_mood_tracking.html',student_moods=student_moods)
+
+@app.route('/teacher/mood_tracking')
+@teacher_required
+def teacher_mood_tracking():
+	user=get_current_user()
+	student_moods=get_student_moods_by_teacher(user['id'])
+	return render_template('teacher_mood_tracking.html',student_moods=student_moods)
 
 if __name__=='__main__':
 	init_db()

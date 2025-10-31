@@ -4,7 +4,9 @@ DATABASE='smart_study.db'
 def init_db():
 	conn=sqlite3.connect(DATABASE)
 	cursor=conn.cursor()
-	cursor.execute('''CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'student')''')
+	cursor.execute('''CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'student',face_image TEXT)''')
+	try:cursor.execute('ALTER TABLE users ADD COLUMN face_image TEXT')
+	except sqlite3.OperationalError:pass
     
 	cursor.execute('''CREATE TABLE IF NOT EXISTS subjects (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT UNIQUE NOT NULL)''')
     
@@ -30,11 +32,13 @@ def init_db():
 	cursor.execute('''CREATE TABLE IF NOT EXISTS quiz_results (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,quiz_id INTEGER,score REAL NOT NULL,answers TEXT NOT NULL,time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY (user_id) REFERENCES users (id),FOREIGN KEY (quiz_id) REFERENCES quizzes (id))''')
 	
 	cursor.execute('''CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,title TEXT NOT NULL,content TEXT NOT NULL,subject_id INTEGER,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY (user_id) REFERENCES users (id),FOREIGN KEY (subject_id) REFERENCES subjects (id))''')
-	
+    
 	try:cursor.execute('ALTER TABLE quiz_results ADD COLUMN quiz_id INTEGER')
 	except:pass
 	try:cursor.execute('ALTER TABLE quiz_results ADD COLUMN score REAL')
 	except:pass
+	
+	cursor.execute('''CREATE TABLE IF NOT EXISTS mood_tracking (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,date DATE NOT NULL,mood TEXT NOT NULL,age INTEGER,gender TEXT,race TEXT,login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY (user_id) REFERENCES users (id),UNIQUE(user_id, date))''')
     
 	cursor.execute('SELECT COUNT(*) FROM subjects')
 	if cursor.fetchone()[0]==0:
@@ -64,15 +68,91 @@ def verify_user(username,password):
 	if user:return {'id':user[0],'username':user[1],'role':user[2]}
 	return None
 
-def add_user(username,password,role):
+def add_user(username,password,role,face_image=None):
 	conn=get_db_connection()
 	cursor=conn.cursor()
 	password_hash=hashlib.sha256(password.encode()).hexdigest()
-	cursor.execute('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',(username,password_hash,role))
+	cursor.execute('INSERT INTO users (username, password_hash, role, face_image) VALUES (?, ?, ?, ?)',(username,password_hash,role,face_image))
 	user_id=cursor.lastrowid
 	conn.commit()
 	conn.close()
 	return user_id
+
+def get_user_face_image(user_id):
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('SELECT face_image FROM users WHERE id = ?',(user_id,))
+	result=cursor.fetchone()
+	conn.close()
+	return result[0] if result and result[0] else None
+
+def get_all_users_with_faces():
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('SELECT id, username, role, face_image FROM users WHERE face_image IS NOT NULL AND face_image != ""')
+	users=[{'id':row[0],'username':row[1],'role':row[2],'face_image':row[3]} for row in cursor.fetchall()]
+	conn.close()
+	return users
+
+def update_user_face_image(user_id,face_image_path):
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('UPDATE users SET face_image = ? WHERE id = ?',(face_image_path,user_id))
+	conn.commit()
+	conn.close()
+
+def add_mood_tracking(user_id,mood,age=None,gender=None,race=None):
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	from datetime import date
+	today=date.today().strftime("%Y-%m-%d")
+	cursor.execute('INSERT OR REPLACE INTO mood_tracking (user_id, date, mood, age, gender, race) VALUES (?, ?, ?, ?, ?, ?)',(user_id,today,mood,age,gender,race))
+	conn.commit()
+	conn.close()
+
+def get_user_mood_today(user_id):
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	from datetime import date
+	today=date.today().strftime("%Y-%m-%d")
+	cursor.execute('SELECT mood FROM mood_tracking WHERE user_id = ? AND date = ?',(user_id,today))
+	result=cursor.fetchone()
+	conn.close()
+	return result[0] if result else None
+
+def get_user_mood_history(user_id,limit=30):
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('SELECT date, mood FROM mood_tracking WHERE user_id = ? ORDER BY date DESC LIMIT ?',(user_id,limit))
+	results=cursor.fetchall()
+	conn.close()
+	return [{'date':row[0],'mood':row[1]} for row in results]
+
+def get_all_student_moods():
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('''SELECT u.id, u.username, mt.date, mt.mood, mt.login_time 
+		FROM users u 
+		LEFT JOIN mood_tracking mt ON u.id = mt.user_id 
+		WHERE u.role = 'student' 
+		ORDER BY mt.login_time DESC''')
+	results=cursor.fetchall()
+	conn.close()
+	return [{'user_id':row[0],'username':row[1],'date':row[2],'mood':row[3],'login_time':row[4]} for row in results if row[2]]
+
+def get_student_moods_by_teacher(teacher_id):
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('''SELECT DISTINCT u.id, u.username, mt.date, mt.mood, mt.login_time 
+		FROM users u 
+		JOIN user_subjects us1 ON u.id = us1.user_id 
+		JOIN user_subjects us2 ON us1.subject_id = us2.subject_id 
+		LEFT JOIN mood_tracking mt ON u.id = mt.user_id 
+		WHERE u.role = 'student' AND us2.user_id = ? 
+		ORDER BY mt.login_time DESC''',(teacher_id,))
+	results=cursor.fetchall()
+	conn.close()
+	return [{'user_id':row[0],'username':row[1],'date':row[2],'mood':row[3],'login_time':row[4]} for row in results if row[2]]
 
 def delete_user(user_id):
 	conn=get_db_connection()

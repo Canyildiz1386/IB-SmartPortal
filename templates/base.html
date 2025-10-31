@@ -53,9 +53,10 @@
         body {
             margin: 0;
             padding: 0;
-            background: #f8f9fa;
+            background: {% if mood_theme %}{{ mood_theme.bg }}{% else %}#f8f9fa{% endif %};
             color: #202124;
             overflow-x: hidden;
+            transition: background 0.5s ease;
         }
         
         .material-icons {
@@ -74,11 +75,11 @@
         
         /* Clean Modern Design */
         .google-card {
-            background: #ffffff;
+            background: {% if mood_theme %}rgba(255, 255, 255, 0.95){% else %}#ffffff{% endif %};
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            transition: all 0.2s ease;
-            border: 1px solid #e8eaed;
+            transition: all 0.2s ease, background 0.5s ease, border-color 0.5s ease;
+            border: 1px solid {% if mood_theme %}{{ mood_theme.accent }}{% else %}#e8eaed{% endif %};
         }
         
         .google-card:hover {
@@ -87,7 +88,7 @@
         }
         
         .google-button {
-            background: #1a73e8;
+            background: {% if mood_theme %}{{ mood_theme.primary }}{% else %}#1a73e8{% endif %};
             color: white;
             border: none;
             border-radius: 8px;
@@ -103,7 +104,7 @@
         }
         
         .google-button:hover {
-            background: #1557b0;
+            background: {% if mood_theme %}{{ mood_theme.accent }}{% else %}#1557b0{% endif %};
             transform: translateY(-1px);
         }
         
@@ -134,8 +135,8 @@
         
         .google-input:focus {
             outline: none;
-            border-color: #1a73e8;
-            box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+            border-color: {% if mood_theme %}{{ mood_theme.primary }}{% else %}#1a73e8{% endif %};
+            box-shadow: 0 0 0 2px {% if mood_theme %}{{ mood_theme.primary }}33{% else %}rgba(26, 115, 232, 0.2){% endif %};
         }
         
         /* Layout */
@@ -146,8 +147,8 @@
         
         .sidebar {
             width: 280px;
-            background: #ffffff;
-            border-right: 1px solid #dadce0;
+            background: {% if mood_theme %}rgba(255, 255, 255, 0.95){% else %}#ffffff{% endif %};
+            border-right: 1px solid {% if mood_theme %}{{ mood_theme.accent }}{% else %}#dadce0{% endif %};
             display: flex;
             flex-direction: column;
             position: fixed;
@@ -155,16 +156,17 @@
             left: 0;
             top: 0;
             z-index: 1000;
-            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), background 0.5s ease, border-color 0.5s ease;
             overflow-y: auto;
         }
         
         .sidebar-header {
             padding: 24px;
-            border-bottom: 1px solid #dadce0;
+            border-bottom: 1px solid {% if mood_theme %}{{ mood_theme.accent }}{% else %}#dadce0{% endif %};
             display: flex;
             align-items: center;
             gap: 12px;
+            transition: border-color 0.5s ease;
         }
         
         .sidebar-nav {
@@ -180,29 +182,30 @@
             padding: 8px 24px;
             font-size: 12px;
             font-weight: 500;
-            color: #5f6368;
+            color: {% if mood_theme %}{{ mood_theme.primary }}{% else %}#5f6368{% endif %};
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            transition: color 0.5s ease;
         }
         
         .nav-item {
             display: flex;
             align-items: center;
             padding: 12px 24px;
-            color: #5f6368;
+            color: {% if mood_theme %}{{ mood_theme.primary }}{% else %}#5f6368{% endif %};
             text-decoration: none;
-            transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1), color 0.5s ease;
             position: relative;
         }
         
         .nav-item:hover {
-            background: #f8f9fa;
-            color: #1a73e8;
+            background: {% if mood_theme %}{{ mood_theme.bg }}{% else %}#f8f9fa{% endif %};
+            color: {% if mood_theme %}{{ mood_theme.primary }}{% else %}#1a73e8{% endif %};
         }
         
         .nav-item.active {
-            background: #e8f0fe;
-            color: #1a73e8;
+            background: {% if mood_theme %}{{ mood_theme.bg }}{% else %}#e8f0fe{% endif %};
+            color: {% if mood_theme %}{{ mood_theme.primary }}{% else %}#1a73e8{% endif %};
         }
         
         .nav-item.active::before {
@@ -212,7 +215,7 @@
             top: 0;
             bottom: 0;
             width: 3px;
-            background: #1a73e8;
+            background: {% if mood_theme %}{{ mood_theme.primary }}{% else %}#1a73e8{% endif %};
         }
         
         .nav-item-icon {
@@ -224,13 +227,13 @@
             flex: 1;
             margin-left: 280px;
             min-height: 100vh;
-            background: #f8f9fa;
-            transition: margin-left 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            background: {% if mood_theme %}{{ mood_theme.bg }}{% else %}#f8f9fa{% endif %};
+            transition: margin-left 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), background 0.5s ease;
         }
         
         .content-header {
-            background: #ffffff;
-            border-bottom: 1px solid #dadce0;
+            background: {% if mood_theme %}rgba(255, 255, 255, 0.9){% else %}#ffffff{% endif %};
+            border-bottom: 1px solid {% if mood_theme %}{{ mood_theme.accent }}{% else %}#dadce0{% endif %};
             padding: 16px 24px;
             display: flex;
             align-items: center;
@@ -289,26 +292,27 @@
             position: fixed;
             top: 24px;
             right: 24px;
-            background: #ffffff;
+            background: {% if mood_theme %}rgba(255, 255, 255, 0.95){% else %}#ffffff{% endif %};
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             padding: 16px 20px;
             z-index: 10000;
             max-width: 400px;
             animation: slideInRight 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-            border-left: 4px solid #1a73e8;
+            border-left: 4px solid {% if mood_theme %}{{ mood_theme.primary }}{% else %}#1a73e8{% endif %};
+            transition: background 0.5s ease, border-color 0.5s ease;
         }
         
         .google-toast.success {
-            border-left-color: #34a853;
+            border-left-color: {% if mood_theme and user_mood == 'happy' %}{{ mood_theme.primary }}{% else %}#34a853{% endif %};
         }
         
         .google-toast.error {
-            border-left-color: #ea4335;
+            border-left-color: {% if mood_theme and user_mood == 'angry' %}{{ mood_theme.primary }}{% else %}#ea4335{% endif %};
         }
         
         .google-toast.warning {
-            border-left-color: #fbbc04;
+            border-left-color: {% if mood_theme %}{{ mood_theme.accent }}{% else %}#fbbc04{% endif %};
         }
         
         /* Mobile Responsive */
@@ -334,13 +338,13 @@
         }
         
         .google-app-card {
-            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            background: {% if mood_theme %}linear-gradient(135deg, rgba(255,255,255,0.95) 0%, {{ mood_theme.bg }} 100%){% else %}linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%){% endif %};
             border-radius: 20px;
             padding: 28px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
-            border: 1px solid rgba(255,255,255,0.3);
+            transition: all 0.4s cubic-bezier(0.4, 0.0, 0.2, 1), background 0.5s ease;
+            border: 1px solid {% if mood_theme %}{{ mood_theme.accent }}40{% else %}rgba(255,255,255,0.3){% endif %};
             position: relative;
             overflow: hidden;
             box-shadow: 0 4px 20px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.1);
@@ -361,8 +365,9 @@
             font-size: 36px;
             color: white;
             margin: 0 auto 20px;
-            transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), background 0.5s ease;
             box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            background: {% if mood_theme %}linear-gradient(135deg, {{ mood_theme.primary }} 0%, {{ mood_theme.accent }} 100%){% else %}linear-gradient(135deg, #1a73e8 0%, #4285f4 100%){% endif %};
         }
         
         .google-app-card:hover .google-app-icon {
@@ -536,10 +541,12 @@
         <!-- Sidebar -->
         <nav class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <span class="material-icons" style="color: #1a73e8; font-size: 32px;">school</span>
+                <span class="material-icons" style="color: {% if mood_theme %}{{ mood_theme.primary }}{% else %}#1a73e8{% endif %}; font-size: 32px; transition: color 0.5s ease;">school</span>
                 <div>
                     <h1 style="margin: 0; font-size: 20px; font-weight: 500; color: #202124;">IB Study Portal</h1>
-                    <p style="margin: 0; font-size: 12px; color: #5f6368;">Educational Platform</p>
+                    <p style="margin: 0; font-size: 12px; color: #5f6368;">
+                        {% if user_mood %}{{ user_mood|emoji }} {{ user_mood|title }}{% else %}Educational Platform{% endif %}
+                    </p>
                 </div>
             </div>
             
@@ -625,11 +632,19 @@
                             <span class="material-icons nav-item-icon">analytics</span>
                             Progress
                         </a>
+                        <a href="{{ url_for('teacher_mood_tracking') }}" class="nav-item">
+                            <span class="material-icons nav-item-icon">mood</span>
+                            Student Moods
+                        </a>
                         {% endif %}
                         {% if session.role == 'admin' %}
                         <a href="{{ url_for('admin') }}" class="nav-item">
                             <span class="material-icons nav-item-icon">people</span>
                             Manage Users
+                        </a>
+                        <a href="{{ url_for('admin_mood_tracking') }}" class="nav-item">
+                            <span class="material-icons nav-item-icon">mood</span>
+                            Student Moods
                         </a>
                         <a href="{{ url_for('manage_subjects') }}" class="nav-item">
                             <span class="material-icons nav-item-icon">subject</span>
@@ -642,6 +657,10 @@
                     <!-- User Section -->
                     <div class="nav-section">
                         <div class="nav-section-title">Account</div>
+                        <a href="{{ url_for('mood_map') }}" class="nav-item">
+                            <span class="material-icons nav-item-icon">mood</span>
+                            Mood Map
+                        </a>
                         <a href="{{ url_for('profile') }}" class="nav-item">
                             <span class="material-icons nav-item-icon">person</span>
                             Profile

@@ -302,22 +302,145 @@
             </div>
             {% endif %}
             
-            <form method="POST">
-                <div class="form-group">
+            <form method="POST" enctype="multipart/form-data" id="loginForm">
+                <div class="form-group" id="usernameGroup">
                     <label class="form-label">Username</label>
-                    <input type="text" name="username" required placeholder="Enter your username" class="form-input">
+                    <input type="text" name="username" placeholder="Enter your username" class="form-input" id="usernameInput">
                 </div>
                 
-                <div class="form-group">
+                <div class="form-group" id="passwordGroup">
                     <label class="form-label">Password</label>
-                    <input type="password" name="password" required placeholder="Enter your password" class="form-input">
+                    <input type="password" name="password" placeholder="Enter your password" class="form-input" id="passwordInput">
                 </div>
                 
-                <button type="submit" class="login-button">
+                <div class="form-group" id="faceGroup" style="display: none;">
+                    <label class="form-label">Face Recognition</label>
+                    <p style="margin: 0 0 12px 0; color: #5f6368; font-size: 14px; text-align: center;">Look at the camera and capture your face</p>
+                    <input type="file" name="face_image" accept="image/*" id="faceInput" style="display: none;">
+                    <div id="cameraContainer" style="display: none;">
+                        <video id="video" autoplay style="width: 100%; border-radius: 12px; margin-top: 12px; background: #000; max-height: 300px;"></video>
+                        <div style="display: flex; gap: 12px; margin-top: 12px;">
+                            <button type="button" id="captureBtn" style="flex: 1; padding: 12px; background: #34a853; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: 500;">
+                                <span class="material-icons" style="font-size: 20px; vertical-align: middle;">camera_alt</span>
+                                Capture Photo
+                            </button>
+                            <button type="button" id="stopCameraBtn" style="flex: 1; padding: 12px; background: #ea4335; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: 500;">
+                                <span class="material-icons" style="font-size: 20px; vertical-align: middle;">stop</span>
+                                Stop Camera
+                            </button>
+                        </div>
+                    </div>
+                    <button type="button" id="startCameraBtn" style="width: 100%; margin-top: 12px; padding: 12px; background: #1a73e8; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: 500;">
+                        <span class="material-icons" style="font-size: 20px; vertical-align: middle;">videocam</span>
+                        Use Camera
+                    </button>
+                    <div style="margin-top: 12px; text-align: center; color: #5f6368; font-size: 14px;">Or upload an image file</div>
+                    <button type="button" onclick="document.getElementById('faceInput').click()" style="width: 100%; margin-top: 8px; padding: 12px; background: #f8f9fa; color: #202124; border: 1px solid #dadce0; border-radius: 12px; cursor: pointer; font-weight: 500;">
+                        <span class="material-icons" style="font-size: 20px; vertical-align: middle;">upload_file</span>
+                        Upload Image File
+                    </button>
+                    <canvas id="canvas" style="display: none;"></canvas>
+                </div>
+                
+                <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                    <button type="button" id="toggleLogin" class="login-button" style="flex: 1; background: #34a853;">
+                        <span class="material-icons">face</span>
+                        Login with Face
+                    </button>
+                </div>
+                
+                <button type="submit" class="login-button" id="submitBtn">
                     <span class="material-icons">login</span>
                     Sign In
                 </button>
             </form>
+            
+            <script>
+            document.getElementById('toggleLogin').addEventListener('click', function() {
+                const usernameGroup = document.getElementById('usernameGroup');
+                const passwordGroup = document.getElementById('passwordGroup');
+                const faceGroup = document.getElementById('faceGroup');
+                const usernameInput = document.getElementById('usernameInput');
+                const passwordInput = document.getElementById('passwordInput');
+                const faceInput = document.getElementById('faceInput');
+                
+                if (passwordGroup.style.display === 'none') {
+                    usernameGroup.style.display = 'block';
+                    passwordGroup.style.display = 'block';
+                    faceGroup.style.display = 'none';
+                    usernameInput.required = true;
+                    passwordInput.required = true;
+                    faceInput.required = false;
+                    this.innerHTML = '<span class="material-icons">face</span> Login with Face';
+                    this.style.background = '#34a853';
+                } else {
+                    usernameGroup.style.display = 'none';
+                    passwordGroup.style.display = 'none';
+                    faceGroup.style.display = 'block';
+                    usernameInput.required = false;
+                    passwordInput.required = false;
+                    faceInput.required = true;
+                    this.innerHTML = '<span class="material-icons">lock</span> Login with Password';
+                    this.style.background = '#1a73e8';
+                }
+            });
+            
+            let cameraStream = null;
+            
+            document.getElementById('startCameraBtn').addEventListener('click', function() {
+                const video = document.getElementById('video');
+                const cameraContainer = document.getElementById('cameraContainer');
+                const startBtn = document.getElementById('startCameraBtn');
+                
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+                    .then(function(stream) {
+                        cameraStream = stream;
+                        video.srcObject = stream;
+                        cameraContainer.style.display = 'block';
+                        startBtn.style.display = 'none';
+                    })
+                    .catch(function(err) {
+                        alert('Error accessing camera: ' + err.message);
+                    });
+            });
+            
+            document.getElementById('stopCameraBtn').addEventListener('click', function() {
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(track => track.stop());
+                    cameraStream = null;
+                }
+                document.getElementById('video').srcObject = null;
+                document.getElementById('cameraContainer').style.display = 'none';
+                document.getElementById('startCameraBtn').style.display = 'block';
+            });
+            
+            document.getElementById('captureBtn').addEventListener('click', function() {
+                const video = document.getElementById('video');
+                const canvas = document.getElementById('canvas');
+                const faceInput = document.getElementById('faceInput');
+                
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+                canvas.toBlob(function(blob) {
+                    const file = new File([blob], 'face.jpg', { type: 'image/jpeg' });
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    faceInput.files = dataTransfer.files;
+                    document.getElementById('stopCameraBtn').click();
+                    document.getElementById('loginForm').submit();
+                }, 'image/jpeg', 0.95);
+            });
+            
+            document.getElementById('faceInput').addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    if (cameraStream) {
+                        document.getElementById('stopCameraBtn').click();
+                    }
+                    document.getElementById('loginForm').submit();
+                }
+            });
+            </script>
         </div>
     </div>
 </body>

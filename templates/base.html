@@ -538,7 +538,7 @@
 </head>
 <body>
     <div class="app-layout">
-        <!-- Sidebar -->
+        
         <nav class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <span class="material-icons" style="color: {% if mood_theme %}{{ mood_theme.primary }}{% else %}#1a73e8{% endif %}; font-size: 32px; transition: color 0.5s ease;">school</span>
@@ -552,7 +552,7 @@
             
             <div class="sidebar-nav">
                 {% if session.user_id %}
-                    <!-- Dashboard -->
+                    
                     {% if session.role == 'admin' %}
                     <div class="nav-section">
                         <div class="nav-section-title">Overview</div>
@@ -571,7 +571,7 @@
                     </div>
                     {% endif %}
                     
-                    <!-- Main Features -->
+                    
                     {% if session.role != 'admin' %}
                     <div class="nav-section">
                         <div class="nav-section-title">Main Features</div>
@@ -598,7 +598,7 @@
                     </div>
                     {% endif %}
                     
-                    <!-- Quizzes -->
+                    
                     <div class="nav-section">
                         <div class="nav-section-title">Quizzes</div>
                         {% if session.role == 'student' %}
@@ -618,7 +618,7 @@
                         {% endif %}
                     </div>
                     
-                    <!-- Subjects - View only, admins assign them -->
+                    
                     {% if session.role in ['student', 'teacher'] %}
                     <div class="nav-section">
                         <div class="nav-section-title">Subjects</div>
@@ -629,7 +629,7 @@
                     </div>
                     {% endif %}
                     
-                    <!-- Admin & Analytics -->
+                    
                     {% if session.role in ['admin', 'teacher'] %}
                     <div class="nav-section">
                         <div class="nav-section-title">{% if session.role == 'admin' %}Management{% else %}Analytics{% endif %}</div>
@@ -660,7 +660,7 @@
                     </div>
                     {% endif %}
                     
-                    <!-- User Section -->
+                    
                     <div class="nav-section">
                         <div class="nav-section-title">Account</div>
                         <a href="{{ url_for('mood_map') }}" class="nav-item">
@@ -680,7 +680,7 @@
             </div>
         </nav>
         
-        <!-- Main Content -->
+        
         <main class="main-content">
             <div class="content-header">
                 <div style="display: flex; align-items: center; gap: 16px;">
@@ -703,7 +703,7 @@
         </main>
     </div>
 
-    <!-- Flash Messages -->
+    
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             <div id="toast-container">

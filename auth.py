@@ -29,7 +29,6 @@ def teacher_required(f):
 		user_role=session.get('role')
 		if user_role not in ['admin','teacher']:
 			flash('Only teachers and admin can access this','error')
-			# Redirect students to their appropriate page instead of login
 			if user_role=='student':
 				return redirect(url_for('student_quizzes'))
 			return redirect(url_for('login'))

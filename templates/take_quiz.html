@@ -5,7 +5,7 @@
 
 {% block content %}
 <div style="max-width: 900px; margin: 0 auto; padding: 24px;">
-    <!-- Quiz Header -->
+    
     <div style="background: white; padding: 32px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px;">
         <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
             <div style="width: 56px; height: 56px; background: #1a73e8; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
@@ -37,7 +37,7 @@
         </div>
     </div>
     
-    <!-- Quiz Form -->
+    
     <form method="POST" id="quizForm">
         {% for question in questions %}
         {% set question_index = loop.index0 %}
@@ -65,7 +65,7 @@
         </div>
         {% endfor %}
         
-        <!-- Submit Button -->
+        
         <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center;">
             <button type="submit" class="google-button" style="width: 100%; padding: 16px; font-size: 18px; background: #34a853; max-width: 400px;">
                 <span class="material-icons" style="font-size: 24px; margin-right: 8px;">send</span>

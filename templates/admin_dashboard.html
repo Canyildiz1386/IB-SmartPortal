@@ -4,7 +4,7 @@
 {% block page_title %}Admin Dashboard{% endblock %}
 
 {% block content %}
-<!-- Welcome Section -->
+
 <div style="padding: 40px 0 60px 0; text-align: center; background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border-radius: 24px; margin-bottom: 40px;">
     <div style="width: 80px; height: 80px; background: #ea4335; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; box-shadow: 0 8px 24px rgba(234, 67, 53, 0.2);">
         <span class="material-icons" style="font-size: 40px; color: white;">admin_panel_settings</span>
@@ -13,7 +13,7 @@
     <p style="margin: 0; color: #5f6368; font-size: 18px; font-weight: 400;">System Overview and Analytics</p>
 </div>
 
-<!-- Quick Actions -->
+
 <div style="margin-bottom: 40px;">
     <h2 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #202124;">Quick Actions</h2>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
@@ -43,7 +43,7 @@
     </div>
 </div>
 
-<!-- Statistics -->
+
 <div style="margin-bottom: 40px;">
     <h2 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #202124;">System Overview</h2>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
@@ -56,7 +56,7 @@
     </div>
 </div>
 
-<!-- Recent Activity -->
+
 <div style="margin-bottom: 40px;">
     <h2 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #202124;">Recent Quiz Activity</h2>
     {% if recent_activities %}
@@ -84,9 +84,9 @@
     {% endif %}
 </div>
 
-<!-- Charts Section -->
+
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-bottom: 40px;">
-    <!-- User Distribution -->
+    
     <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #202124;">User Distribution</h3>
         {% if user_distribution['values'] and user_distribution['values']|length > 0 %}
@@ -114,7 +114,7 @@
         {% endif %}
     </div>
 
-    <!-- Performance Overview -->
+    
     <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #202124;">Performance Overview</h3>
         <div style="display: flex; flex-direction: column; gap: 16px;">
@@ -129,7 +129,7 @@
         </div>
     </div>
 
-    <!-- Score Distribution -->
+    
     <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #202124;">Score Distribution</h3>
         {% if score_distribution['values'] and score_distribution['values']|length > 0 %}
@@ -157,7 +157,7 @@
         {% endif %}
     </div>
 
-    <!-- Subject Activity -->
+    
     <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #202124;">Subject Activity</h3>
         {% if subject_activity['values'] and subject_activity['values']|length > 0 %}

@@ -5,7 +5,7 @@
 
 {% block content %}
 <div style="max-width: 900px; margin: 0 auto; padding: 24px;">
-    <!-- Results Card -->
+    
     <div style="background: white; padding: 48px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; margin-bottom: 32px;">
         <div style="width: 80px; height: 80px; background: {% if percentage >= 80 %}#34a853{% elif percentage >= 60 %}#fbbc04{% else %}#ea4335{% endif %}; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; box-shadow: 0 8px 24px {% if percentage >= 80 %}rgba(52, 168, 83, 0.3){% elif percentage >= 60 %}rgba(251, 188, 4, 0.3){% else %}rgba(234, 67, 53, 0.3){% endif %};">
             <span class="material-icons" style="font-size: 48px; color: white;">
@@ -50,7 +50,7 @@
         </div>
     </div>
     
-    <!-- Detailed Results -->
+    
     {% if answers %}
     <div style="background: white; padding: 32px; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #202124;">Detailed Review</h2>
@@ -73,7 +73,7 @@
                     
                     <p style="margin: 0 0 16px 0; color: #202124; font-size: 15px; line-height: 1.5;" class="markdown-content">{{ answer.question }}</p>
                     
-                    <!-- All Options -->
+                    
                     {% if answer.options %}
                     <div style="margin-bottom: 16px;">
                         <p style="margin: 0 0 8px 0; font-weight: 600; color: #5f6368; font-size: 13px;">All Options:</p>
@@ -98,7 +98,7 @@
                         </div>
                     </div>
                     {% else %}
-                    <!-- Fallback if options not available -->
+                    
                     <div style="display: grid; gap: 8px; margin-bottom: 16px;">
                         <div style="padding: 10px 12px; border-radius: 8px; {% if answer.is_correct %}background: #c8e6c9; border: 1px solid #81c784;{% else %}background: #ffcdd2; border: 1px solid #e57373;{% endif %}">
                             <span style="font-weight: 600; color: #202124; font-size: 13px;">Your Answer:</span>
@@ -114,7 +114,7 @@
                     </div>
                     {% endif %}
                     
-                    <!-- AI Explanation Button -->
+                    
                     <button onclick="getExplanation({{ loop.index0 }}, '{{ answer.question|replace("'", "\\'") }}', {{ answer.options|tojson if answer.options else '[]' }}, '{{ answer.correct_answer }}', '{{ answer.user_answer }}')" 
                             id="explain-btn-{{ loop.index0 }}"
                             class="google-button secondary" 
@@ -123,7 +123,7 @@
                         Get AI Explanation
                     </button>
                     
-                    <!-- Explanation Container -->
+                    
                     <div id="explanation-{{ loop.index0 }}" style="display: none; margin-top: 12px; padding: 16px; background: #e8f5e9; border: 2px solid #81c784; border-radius: 12px;">
                         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
                             <span class="material-icons" style="color: #2e7d32; font-size: 20px;">lightbulb</span>
@@ -132,7 +132,7 @@
                         <div id="explanation-content-{{ loop.index0 }}" style="color: #1b5e20; font-size: 14px; line-height: 1.6;" class="markdown-content"></div>
                     </div>
                     
-                    <!-- Loading Indicator -->
+                    
                     <div id="explanation-loading-{{ loop.index0 }}" style="display: none; text-align: center; padding: 16px;">
                         <div style="display: inline-block; width: 24px; height: 24px; border: 3px solid #f3f3f3; border-top: 3px solid #1a73e8; border-radius: 50%; animation: spin 1s linear infinite;"></div>
                         <p style="margin: 8px 0 0 0; color: #5f6368; font-size: 13px;">Generating explanation...</p>

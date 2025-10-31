@@ -15,7 +15,7 @@
     </div>
     
     <div style="display: grid; grid-template-columns: 400px 1fr; gap: 24px;">
-        <!-- Add Subject Form -->
+        
         <div style="background: white; padding: 32px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1); height: fit-content;">
             <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #202124;">Add New Subject</h2>
             
@@ -32,14 +32,14 @@
             </form>
         </div>
         
-        <!-- Subjects List -->
+        
         <div style="background: white; padding: 32px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
             <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #202124;">All Subjects ({{ subjects|length }})</h2>
             
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
                 {% for subject in subjects %}
                     <div style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border: 1px solid #e8eaed; border-radius: 12px; padding: 20px; transition: all 0.2s ease; position: relative; overflow: hidden;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
-                        <!-- Decorative gradient -->
+                        
                         <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #9c27b0, #673ab7, #3f51b5);"></div>
                         
                         <div style="margin-bottom: 16px;">

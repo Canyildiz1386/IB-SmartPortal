@@ -154,7 +154,6 @@ IMPORTANT FORMATTING REQUIREMENTS:
 			for i,eq in enumerate(existing_questions):
 				existing_questions_text+=f"{i+1}. {eq.get('question','')}\n"
 		
-		# Define difficulty-specific instructions
 		difficulty_instructions={
 			"easy":"Create questions that test basic recall and understanding of fundamental concepts. Use straightforward language. The correct answer should be clearly identifiable from the content.",
 			"medium":"Create questions that require applying concepts and analyzing relationships. Include some reasoning but keep it accessible. Options should be plausible but distinguishable with proper understanding.",
@@ -234,7 +233,6 @@ ALWAYS USE MARKDOWN FORMAT FOR THE QUESTION AND OPTIONS.
 					elif line.startswith('D)'):options.append(line.replace('D)','').strip())
 					elif line.startswith('Answer:'):correct=line.replace('Answer:','').strip().upper()
 				if question and len(options)==4 and correct in ['A','B','C','D']:
-					# Check for similarity with existing questions
 					is_duplicate=False
 					if existing_questions:
 						for eq in existing_questions:

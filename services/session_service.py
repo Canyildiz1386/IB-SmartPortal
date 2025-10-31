@@ -1,6 +1,6 @@
 from flask import session as flask_session
 from flask_socketio import emit, join_room, leave_room
-from db import get_db_connection, log_qa
+from database.db import get_db_connection, log_qa
 from database.session_db import join_session, leave_session, add_session_message, get_session_participants
 from services.rag_service import get_rag_system
 import time

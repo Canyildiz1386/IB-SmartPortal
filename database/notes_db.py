@@ -1,4 +1,4 @@
-from db import get_db_connection
+from database.db import get_db_connection
 
 def get_user_notes(user_id):
     conn = get_db_connection()

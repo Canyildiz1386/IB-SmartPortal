@@ -1,4 +1,4 @@
-from db import get_db_connection
+from database.db import get_db_connection
 
 def create_study_session(host_id, title, subject_id=None, description='', max_participants=10):
     conn = get_db_connection()

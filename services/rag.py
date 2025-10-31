@@ -285,3 +285,4 @@ ALWAYS USE MARKDOWN FORMAT FOR THE QUESTION AND OPTIONS.
 		results=self.search(question,top_k)
 		answer=self.generate_answer(question,results)
 		return answer,results
+

@@ -3,20 +3,20 @@ import uuid
 import json
 import hashlib
 import time
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, make_response
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, make_response, send_from_directory
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask import session as flask_session
 from werkzeug.utils import secure_filename
 
-from config import UPLOAD_FOLDER, USER_IMAGES_FOLDER, MAX_FILE_SIZE, SECRET_KEY, PERMANENT_SESSION_LIFETIME
-from db import (init_db, verify_user, add_material, log_qa, get_materials, add_user, delete_user, get_all_users,
+from utils.config import UPLOAD_FOLDER, USER_IMAGES_FOLDER, MAX_FILE_SIZE, SECRET_KEY, PERMANENT_SESSION_LIFETIME
+from database.db import (init_db, verify_user, add_material, log_qa, get_materials, add_user, delete_user, get_all_users,
                 log_quiz_result, get_qa_logs, get_quiz_results, export_quiz_csv, get_subjects, get_user_subjects,
                 assign_user_subject, remove_user_subject, create_quiz, assign_quiz_to_students, get_teacher_quizzes,
                 get_student_quizzes, get_quiz_by_id, update_quiz_score, get_db_connection, get_non_indexed_materials,
                 update_material_indexed_status, get_subjects_with_counts, get_user_face_image, update_user_face_image,
                 add_mood_tracking, get_user_mood_today, get_user_mood_history, get_all_student_moods,
                 get_student_moods_by_teacher, get_all_users_with_faces)
-from auth import login_required, admin_required, teacher_required, login_user, logout_user, get_current_user
+from utils.auth import login_required, admin_required, teacher_required, login_user, logout_user, get_current_user
 from services.rag_service import get_rag_system
 from database.session_db import (create_study_session, get_study_sessions, get_session_participants,
                                   join_session, leave_session, add_session_message, get_session_messages)
@@ -32,7 +32,7 @@ from services.session_service import (handle_join_session_socket, handle_leave_s
                                        handle_offer_socket, handle_answer_socket, handle_ice_candidate_socket,
                                        handle_ready_for_connections_socket)
 from utils.file_utils import allowed_file
-from face_utils import prepare_uploaded_image, verify_face, analyze_mood, mood_emoji, get_mood_theme
+from utils.face_utils import prepare_uploaded_image, verify_face, analyze_mood, mood_emoji, get_mood_theme
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -297,7 +297,7 @@ def export_quiz():
 @admin_required
 def admin():
     if request.method=='POST':
-        username,password,role,subject_ids=request.form['username'],request.form['password'],request.form['role'],request.getlist('subject_ids')
+        username,password,role,subject_ids=request.form['username'],request.form['password'],request.form['role'],request.form.getlist('subject_ids')
         face_image=request.files.get('face_image')
         face_image_path=None
         if face_image and face_image.filename:
@@ -633,11 +633,35 @@ def teacher_dashboard():
     user_distribution,performance_data,subject_activity,time_series_data,score_distribution=get_user_distribution(),get_performance_data(),get_subject_activity(),get_time_series_data(),get_score_distribution()
     return render_template('teacher_dashboard.html',user=user,stats=stats,recent_activities=recent_activities,user_distribution=user_distribution,performance_data=performance_data,subject_activity=subject_activity,time_series_data=time_series_data,score_distribution=score_distribution)
 
-@app.route('/profile')
+@app.route('/user_images/<path:filename>')
+@login_required
+def serve_user_image(filename):
+    return send_from_directory(USER_IMAGES_FOLDER, filename)
+
+@app.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
     user=get_current_user()
     user_subjects=[] if user['role']=='admin' else get_user_subjects(user['id'])
+    face_image_path = get_user_face_image(user['id'])
+    user['face_image'] = face_image_path
+    if request.method == 'POST':
+        face_image = request.files.get('face_image')
+        if face_image and face_image.filename:
+            username = user['username']
+            user_folder = os.path.join(USER_IMAGES_FOLDER, username)
+            os.makedirs(user_folder, exist_ok=True)
+            face_image_path = os.path.join(user_folder, f"{username}_face.jpg")
+            success, msg = prepare_uploaded_image(face_image, face_image_path)
+            if success:
+                update_user_face_image(user['id'], face_image_path)
+                flash('Profile image updated successfully!', 'success')
+            else:
+                flash(f'Image upload error: {msg}', 'error')
+        elif not face_image_path:
+            flash('Please select an image file.', 'error')
+        return redirect(url_for('profile'))
+    
     return render_template('profile.html',user=user,user_subjects=user_subjects)
 
 @app.route('/change_password',methods=['POST'])

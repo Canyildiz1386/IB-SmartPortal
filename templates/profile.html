@@ -77,6 +77,37 @@
                 {% endif %}
             </div>
         </div>
+        
+        <div style="background: white; padding: 32px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #202124;">Face Recognition Image</h2>
+            <p style="margin: 0 0 24px 0; color: #5f6368; font-size: 14px;">Upload your face image to enable face recognition login</p>
+            
+            <form method="POST" action="{{ url_for('profile') }}" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 20px;">
+                <div>
+                    {% if user.face_image %}
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Current Image</label>
+                        {% set image_path = user.face_image.replace('user_images/', '').replace('user_images\\', '') %}
+                        <img src="{{ url_for('serve_user_image', filename=image_path) }}" 
+                             alt="Profile Image" 
+                             onerror="this.style.display='none'"
+                             style="width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 2px solid #e8eaed;">
+                    </div>
+                    {% endif %}
+                    
+                    <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">
+                        {% if user.face_image %}Update Face Image{% else %}Upload Face Image{% endif %}
+                    </label>
+                    <input type="file" name="face_image" accept="image/*" {% if not user.face_image %}required{% endif %} class="google-input" style="padding: 12px 16px;">
+                    <p style="margin: 8px 0 0 0; color: #5f6368; font-size: 12px;">Upload a clear face image for face recognition login. Make sure your face is clearly visible and well-lit.</p>
+                </div>
+                
+                <button type="submit" class="google-button" style="width: 100%; padding: 16px; font-size: 16px;">
+                    <span class="material-icons" style="font-size: 20px; margin-right: 8px;">photo_camera</span>
+                    {% if user.face_image %}Update Face Image{% else %}Upload Face Image{% endif %}
+                </button>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}

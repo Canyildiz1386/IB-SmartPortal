@@ -1,4 +1,4 @@
-from db import get_db_connection
+from database.db import get_db_connection
 import json
 
 def get_quiz_result(result_id, user_id):

@@ -1,6 +1,6 @@
 import os
-from rag import SmartStudyRAG
-from db import get_materials
+from services.rag import SmartStudyRAG
+from database.db import get_materials
 
 rag_system = None
 

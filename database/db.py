@@ -360,3 +360,4 @@ def update_material_indexed_status(material_id,indexed=1):
 	cursor.execute('UPDATE materials SET indexed = ? WHERE id = ?',(indexed,material_id))
 	conn.commit()
 	conn.close()
+

@@ -47,3 +47,4 @@ def logout_user():
 def get_current_user():
 	user_id,username,role=session.get('user_id'),session.get('username'),session.get('role')
 	return {'id':user_id,'username':username,'role':role}
+

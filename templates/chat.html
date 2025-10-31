@@ -85,6 +85,11 @@
                           style="width: 100%; padding: 12px 16px; background: #ffffff; border: 1px solid #dadce0; border-radius: 8px; font-size: 14px; font-family: inherit; line-height: 1.5; resize: none; outline: none;"
                           id="questionInput"></textarea>
             </div>
+            <button type="button" id="voiceToggleBtn" 
+                    style="background: #f8f9fa; color: #5f6368; border: 1px solid #dadce0; border-radius: 8px; padding: 12px 16px; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px;"
+                    title="Enable voice conversation">
+                <span id="voiceText">Voice</span>
+            </button>
             <button type="submit" id="askBtn" 
                     style="background: #1a73e8; color: white; border: none; border-radius: 8px; padding: 12px 20px; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px;">
                 <span id="btnText">Send</span>
@@ -181,8 +186,7 @@ function scrollToBottom() {
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
-document.getElementById('chatForm').addEventListener('submit', function(e) {
-    e.preventDefault();
+function submitQuestion() {
     const btn = document.getElementById('askBtn');
     const btnText = document.getElementById('btnText');
     const loadingMessage = document.getElementById('loadingMessage');
@@ -192,13 +196,27 @@ document.getElementById('chatForm').addEventListener('submit', function(e) {
     if (!question) {
         return;
     }
+    if (btn.disabled) {
+        return;
+    }
     btn.disabled = true;
     btnText.textContent = 'Sending...';
     addUserMessage(question);
+    questionInput.value = '';
+    questionInput.style.height = 'auto';
     scrollToBottom();
-    loadingMessage.style.display = 'flex';
-    chatContainer.appendChild(loadingMessage);
-    scrollToBottom();
+    setTimeout(() => {
+        if (loadingMessage) {
+            if (loadingMessage.parentNode) {
+                loadingMessage.parentNode.removeChild(loadingMessage);
+            }
+            loadingMessage.style.display = 'flex';
+            if (chatContainer) {
+                chatContainer.appendChild(loadingMessage);
+            }
+        }
+        scrollToBottom();
+    }, 50);
     const formData = new FormData();
     formData.append('question', question);
     const timeoutPromise = new Promise((_, reject) => {
@@ -220,32 +238,51 @@ document.getElementById('chatForm').addEventListener('submit', function(e) {
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return response.json();
+        return response.json().catch(() => {
+            throw new Error('Invalid JSON response');
+        });
     })
     .then(data => {
-        if (!data.success) {
-            throw new Error(data.error || 'Unknown error');
+        if (!data || !data.success) {
+            throw new Error(data?.error || 'Unknown error');
         }
-        loadingMessage.style.display = 'none';
-        if (loadingMessage.parentNode) {
-            loadingMessage.parentNode.removeChild(loadingMessage);
+        if (loadingMessage) {
+            if (loadingMessage.parentNode) {
+                loadingMessage.parentNode.removeChild(loadingMessage);
+            }
+            loadingMessage.style.display = 'none';
         }
         addAIMessage(data.answer, data.sources);
-        questionInput.value = '';
-        questionInput.style.height = 'auto';
         btn.disabled = false;
         btnText.textContent = 'Send';
         scrollToBottom();
+        if (window.voiceEnabled) {
+            speakText(data.answer);
+            if (recognition && voiceEnabled) {
+                setTimeout(() => {
+                    if (!isListening) {
+                        startVoiceInput();
+                    }
+                }, 1000);
+            }
+        }
     })
     .catch(error => {
-        btn.disabled = false;
-        btnText.textContent = 'Send';
-        loadingMessage.style.display = 'none';
-        if (loadingMessage.parentNode) {
+        if (loadingMessage && loadingMessage.parentNode) {
             loadingMessage.parentNode.removeChild(loadingMessage);
         }
+        if (loadingMessage) {
+            loadingMessage.style.display = 'none';
+        }
+        btn.disabled = false;
+        btnText.textContent = 'Send';
         alert('Error sending question: ' + error.message);
     });
+}
+
+document.getElementById('chatForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    submitQuestion();
 });
 
 document.getElementById('questionInput').addEventListener('keydown', function(e) {
@@ -255,5 +292,151 @@ document.getElementById('questionInput').addEventListener('keydown', function(e)
     }
 });
 scrollToBottom();
+
+let voiceEnabled = false;
+let currentSpeech = null;
+let recognition = null;
+let isListening = false;
+
+function speakText(text) {
+    if ('speechSynthesis' in window) {
+        if (currentSpeech) {
+            window.speechSynthesis.cancel();
+        }
+        const utterance = new SpeechSynthesisUtterance(text);
+        const voices = window.speechSynthesis.getVoices();
+        const maleVoice = voices.find(voice => 
+            voice.name.toLowerCase().includes('male') || 
+            voice.name.toLowerCase().includes('david') ||
+            voice.name.toLowerCase().includes('daniel') ||
+            voice.name.toLowerCase().includes('james') ||
+            (voice.lang.startsWith('en') && voice.gender === 'male')
+        ) || voices.find(voice => voice.lang.startsWith('en-US') && !voice.name.toLowerCase().includes('female')) || voices.find(voice => voice.lang.startsWith('en'));
+        if (maleVoice) {
+            utterance.voice = maleVoice;
+        }
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        utterance.onend = function() {
+            currentSpeech = null;
+        };
+        utterance.onerror = function() {
+            currentSpeech = null;
+        };
+        currentSpeech = utterance;
+        window.speechSynthesis.speak(utterance);
+    }
+}
+
+function stopSpeaking() {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        currentSpeech = null;
+    }
+}
+
+document.getElementById('voiceToggleBtn').addEventListener('click', function() {
+    voiceEnabled = !voiceEnabled;
+    const btn = document.getElementById('voiceToggleBtn');
+    const voiceText = document.getElementById('voiceText');
+    if (voiceEnabled) {
+        btn.style.background = '#1a73e8';
+        btn.style.color = 'white';
+        btn.style.borderColor = '#1a73e8';
+        voiceText.textContent = 'Voice ON';
+        window.voiceEnabled = true;
+        if (recognition && !isListening) {
+            startVoiceInput();
+        }
+    } else {
+        btn.style.background = '#f8f9fa';
+        btn.style.color = '#5f6368';
+        btn.style.borderColor = '#dadce0';
+        voiceText.textContent = 'Voice';
+        window.voiceEnabled = false;
+        stopSpeaking();
+        stopVoiceInput();
+    }
+});
+
+if ('speechSynthesis' in window) {
+    window.speechSynthesis.getVoices();
+    window.addEventListener('voiceschanged', function() {
+        window.speechSynthesis.getVoices();
+    });
+}
+
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = function(event) {
+        const transcript = event.results[0][0].transcript;
+        const questionInput = document.getElementById('questionInput');
+        questionInput.value = transcript;
+        isListening = false;
+        recognition.stop();
+        setTimeout(() => {
+            submitQuestion();
+        }, 100);
+    };
+
+    recognition.onerror = function(event) {
+        console.error('Speech recognition error:', event.error);
+        stopVoiceInput();
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+            alert('Speech recognition error: ' + event.error);
+        }
+    };
+
+    recognition.onend = function() {
+        if (voiceEnabled && !isListening) {
+            setTimeout(() => {
+                if (voiceEnabled && !isListening) {
+                    try {
+                        isListening = true;
+                        recognition.start();
+                    } catch (e) {
+                        isListening = false;
+                    }
+                }
+            }, 100);
+        }
+    };
+
+} else {
+    document.getElementById('voiceToggleBtn').style.display = 'none';
+}
+
+function startVoiceInput() {
+    if (recognition && !isListening && voiceEnabled) {
+        try {
+            isListening = true;
+            recognition.start();
+            const questionInput = document.getElementById('questionInput');
+            questionInput.placeholder = 'Listening...';
+        } catch (e) {
+            console.error('Error starting recognition:', e);
+            isListening = false;
+        }
+    }
+}
+
+function stopVoiceInput() {
+    if (recognition && isListening) {
+        isListening = false;
+        try {
+            recognition.stop();
+        } catch (e) {
+            console.error('Error stopping recognition:', e);
+        }
+        const questionInput = document.getElementById('questionInput');
+        questionInput.placeholder = 'Ask a question about your materials...';
+    }
+}
 </script>
 {% endblock %}

@@ -4,7 +4,6 @@
 
 {% block content %}
 <div style="max-width: 1000px; margin: 0 auto; height: calc(100vh - 120px); display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e8eaed;">
-    <!-- Header -->
     <div style="background: #1a73e8; padding: 24px; color: white;">
         <div style="display: flex; align-items: center; gap: 16px;">
             <div style="width: 48px; height: 48px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
@@ -16,20 +15,15 @@
             </div>
         </div>
     </div>
-    
-    <!-- Chat Container -->
     <div style="flex: 1; background: #f8f9fa; padding: 24px; overflow-y: auto;" id="chatContainer">
         {% if chat_history %}
             {% for entry in chat_history %}
-                <!-- User Message -->
-                <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+                <div class="chat-message user-message" style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
                     <div style="max-width: 70%; background: #1a73e8; color: white; padding: 16px 20px; border-radius: 18px 18px 4px 18px;">
-                        <p style="margin: 0; font-size: 14px; line-height: 1.5;" class="markdown-content">{{ entry.question }}</p>
+                        <p style="margin: 0; font-size: 14px; line-height: 1.5;">{{ entry.question }}</p>
                     </div>
                 </div>
-                
-                <!-- AI Response -->
-                <div style="display: flex; justify-content: flex-start; margin-bottom: 24px;">
+                <div class="chat-message ai-message" style="display: flex; justify-content: flex-start; margin-bottom: 24px;">
                     <div style="max-width: 80%; background: white; padding: 16px 20px; border-radius: 18px 18px 18px 4px; border: 1px solid #e8eaed;">
                         <div style="display: flex; align-items: center; margin-bottom: 12px;">
                             <div style="width: 32px; height: 32px; background: #34a853; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
@@ -37,7 +31,7 @@
                             </div>
                             <span style="font-size: 12px; font-weight: 500; color: #5f6368;">AI Assistant</span>
                         </div>
-                        <div style="font-size: 14px; line-height: 1.6; color: #202124;" class="markdown-content">
+                        <div style="font-size: 14px; line-height: 1.6; color: #202124; white-space: pre-wrap; word-wrap: break-word;">
                             {{ entry.answer }}
                         </div>
                         {% if entry.sources %}
@@ -55,7 +49,7 @@
                 </div>
             {% endfor %}
         {% else %}
-            <div style="display: flex; justify-content: center; align-items: center; height: 100%; text-align: center;">
+            <div id="welcomeMessage" style="display: flex; justify-content: center; align-items: center; height: 100%; text-align: center;">
                 <div>
                     <div style="width: 80px; height: 80px; background: #1a73e8; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
                         <span class="material-icons" style="font-size: 40px; color: white;">smart_toy</span>
@@ -65,8 +59,6 @@
                 </div>
             </div>
         {% endif %}
-        
-        <!-- Loading Message -->
         <div id="loadingMessage" style="display: none; justify-content: flex-start; margin-bottom: 24px;">
             <div style="max-width: 80%; background: white; padding: 16px 20px; border-radius: 18px 18px 18px 4px; border: 1px solid #e8eaed;">
                 <div style="display: flex; align-items: center; margin-bottom: 12px;">
@@ -86,8 +78,6 @@
             </div>
         </div>
     </div>
-    
-    <!-- Input Form -->
     <div style="background: white; padding: 24px; border-top: 1px solid #e8eaed;">
         <form method="POST" style="display: flex; gap: 12px; align-items: flex-end;" id="chatForm">
             <div style="flex: 1;">
@@ -125,17 +115,137 @@
 </style>
 
 <script>
+function addUserMessage(question) {
+    const chatContainer = document.getElementById('chatContainer');
+    const welcomeMsg = document.getElementById('welcomeMessage');
+    if (welcomeMsg) {
+        welcomeMsg.remove();
+    }
+    const userMsgDiv = document.createElement('div');
+    userMsgDiv.className = 'chat-message user-message';
+    userMsgDiv.style.cssText = 'display: flex; justify-content: flex-end; margin-bottom: 16px;';
+    userMsgDiv.innerHTML = `
+        <div style="max-width: 70%; background: #1a73e8; color: white; padding: 16px 20px; border-radius: 18px 18px 4px 18px;">
+            <p style="margin: 0; font-size: 14px; line-height: 1.5;">${escapeHtml(question)}</p>
+        </div>
+    `;
+    chatContainer.appendChild(userMsgDiv);
+}
+
+function addAIMessage(answer, sources) {
+    const chatContainer = document.getElementById('chatContainer');
+    const aiMsgDiv = document.createElement('div');
+    aiMsgDiv.className = 'chat-message ai-message';
+    aiMsgDiv.style.cssText = 'display: flex; justify-content: flex-start; margin-bottom: 24px;';
+    
+    let sourcesHtml = '';
+    if (sources && sources.length > 0) {
+        sourcesHtml = `
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e8eaed;">
+                <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 500; color: #5f6368;">Sources:</p>
+                ${sources.map(s => `
+                    <div style="background: #f8f9fa; padding: 8px 12px; border-radius: 8px; margin-bottom: 4px; border: 1px solid #e8eaed;">
+                        <span style="color: #1a73e8; font-weight: 500; font-size: 12px;">${escapeHtml(s.metadata?.file || 'Unknown')}</span>
+                        <span style="color: #5f6368; margin-left: 8px; font-size: 11px;">(${(s.score * 100).toFixed(1)}%)</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    aiMsgDiv.innerHTML = `
+        <div style="max-width: 80%; background: white; padding: 16px 20px; border-radius: 18px 18px 18px 4px; border: 1px solid #e8eaed;">
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                <div style="width: 32px; height: 32px; background: #34a853; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                    <span class="material-icons" style="font-size: 16px; color: white;">smart_toy</span>
+                </div>
+                <span style="font-size: 12px; font-weight: 500; color: #5f6368;">AI Assistant</span>
+            </div>
+            <div style="font-size: 14px; line-height: 1.6; color: #202124; white-space: pre-wrap; word-wrap: break-word;">
+                ${escapeHtml(answer)}
+            </div>
+            ${sourcesHtml}
+        </div>
+    `;
+    chatContainer.appendChild(aiMsgDiv);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function scrollToBottom() {
+    const chatContainer = document.getElementById('chatContainer');
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
 document.getElementById('chatForm').addEventListener('submit', function(e) {
+    e.preventDefault();
     const btn = document.getElementById('askBtn');
     const btnText = document.getElementById('btnText');
     const loadingMessage = document.getElementById('loadingMessage');
     const chatContainer = document.getElementById('chatContainer');
-    
+    const questionInput = document.getElementById('questionInput');
+    const question = questionInput.value.trim();
+    if (!question) {
+        return;
+    }
     btn.disabled = true;
     btnText.textContent = 'Sending...';
+    addUserMessage(question);
+    scrollToBottom();
     loadingMessage.style.display = 'flex';
-    
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+    chatContainer.appendChild(loadingMessage);
+    scrollToBottom();
+    const formData = new FormData();
+    formData.append('question', question);
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+            reject(new Error('Request timeout after 30 seconds'));
+        }, 30000);
+    });
+    Promise.race([
+        fetch('/chat', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }),
+        timeoutPromise
+    ])
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (!data.success) {
+            throw new Error(data.error || 'Unknown error');
+        }
+        loadingMessage.style.display = 'none';
+        if (loadingMessage.parentNode) {
+            loadingMessage.parentNode.removeChild(loadingMessage);
+        }
+        addAIMessage(data.answer, data.sources);
+        questionInput.value = '';
+        questionInput.style.height = 'auto';
+        btn.disabled = false;
+        btnText.textContent = 'Send';
+        scrollToBottom();
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btnText.textContent = 'Send';
+        loadingMessage.style.display = 'none';
+        if (loadingMessage.parentNode) {
+            loadingMessage.parentNode.removeChild(loadingMessage);
+        }
+        alert('Error sending question: ' + error.message);
+    });
 });
 
 document.getElementById('questionInput').addEventListener('keydown', function(e) {
@@ -144,8 +254,6 @@ document.getElementById('questionInput').addEventListener('keydown', function(e)
         document.getElementById('chatForm').dispatchEvent(new Event('submit'));
     }
 });
-
-const chatContainer = document.getElementById('chatContainer');
-chatContainer.scrollTop = chatContainer.scrollHeight;
+scrollToBottom();
 </script>
 {% endblock %}

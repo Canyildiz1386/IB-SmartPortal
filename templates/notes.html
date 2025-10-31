@@ -165,10 +165,6 @@
                         <span class="material-icons" style="font-size: 16px; margin-right: 4px;">mic</span>
                         Voice Input
                     </button>
-                    <button onclick="extractTextFromImage()" class="google-button secondary" style="padding: 8px 12px;">
-                        <span class="material-icons" style="font-size: 16px; margin-right: 4px;">text_fields</span>
-                        Extract Text
-                    </button>
                 </div>
                 
                 <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
@@ -197,7 +193,6 @@
 
 <!-- Hidden file inputs -->
 <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
-<input type="file" id="extractImageInput" accept="image/*" style="display: none;" onchange="handleExtractText(event)">
 
 <script>
 let currentNoteId = null;
@@ -518,7 +513,6 @@ function startVoiceInput() {
     };
     
     recognition.onerror = function(event) {
-        console.error('Speech recognition error:', event.error);
         if (event.error !== 'no-speech' && event.error !== 'aborted') {
             stopVoiceInput();
             alert('Speech recognition error: ' + event.error);
@@ -565,78 +559,6 @@ function stopVoiceInput() {
     }
 }
 
-function extractTextFromImage() {
-    document.getElementById('extractImageInput').click();
-}
-
-async function handleExtractText(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    // Show loading notification
-    const loadingNotif = document.createElement('div');
-    loadingNotif.id = 'extractLoading';
-    loadingNotif.style.cssText = 'position: fixed; bottom: 24px; right: 24px; background: #1a73e8; color: white; padding: 16px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10001; display: flex; align-items: center; gap: 12px;';
-    loadingNotif.innerHTML = `
-        <div style="width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top: 3px solid white; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-        <span>Extracting text from image...</span>
-    `;
-    document.body.appendChild(loadingNotif);
-    
-    const textarea = document.getElementById('noteContent');
-    const formData = new FormData();
-    formData.append('image', file);
-    
-    try {
-        const response = await fetch('/extract_text_from_image', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const data = await response.json();
-        
-        loadingNotif.remove();
-        
-        if (data.success && data.extracted_text) {
-            // Insert extracted text at cursor position
-            const cursorPos = textarea.selectionStart || 0;
-            const textBefore = textarea.value.substring(0, cursorPos);
-            const textAfter = textarea.value.substring(cursorPos);
-            
-            const extractedText = data.extracted_text.trim();
-            textarea.value = textBefore + '\n\n' + extractedText + '\n\n' + textAfter;
-            
-            // Move cursor after inserted text
-            const newPos = cursorPos + extractedText.length + 4;
-            textarea.selectionStart = textarea.selectionEnd = newPos;
-            textarea.focus();
-            
-            // Show success notification
-            const successNotif = document.createElement('div');
-            successNotif.style.cssText = 'position: fixed; bottom: 24px; right: 24px; background: #34a853; color: white; padding: 16px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10001; display: flex; align-items: center; gap: 12px;';
-            successNotif.innerHTML = `
-                <span class="material-icons">check_circle</span>
-                <span>Text extracted and added to note!</span>
-            `;
-            document.body.appendChild(successNotif);
-            
-            setTimeout(() => {
-                successNotif.style.opacity = '0';
-                successNotif.style.transform = 'translateX(100%)';
-                successNotif.style.transition = 'all 0.3s';
-                setTimeout(() => successNotif.remove(), 300);
-            }, 3000);
-        } else {
-            alert('Error extracting text: ' + (data.error || 'Could not extract text from image. Make sure the image contains readable text.'));
-        }
-    } catch (error) {
-        loadingNotif.remove();
-        alert('Error extracting text: ' + error);
-    } finally {
-        // Reset file input
-        event.target.value = '';
-    }
-}
 
 // Search functionality
 document.getElementById('searchNotes').addEventListener('input', function(e) {
@@ -655,10 +577,7 @@ document.getElementById('searchNotes').addEventListener('input', function(e) {
     });
 });
 
-// Subject filter
 document.getElementById('filterSubject').addEventListener('change', function(e) {
-    // Implementation for subject filtering
-    console.log('Filter by subject:', e.target.value);
 });
 </script>
 {% endblock %}

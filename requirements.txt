@@ -6,5 +6,4 @@ scikit-learn
 numpy
 werkzeug
 Pillow
-pytesseract
 opencv-python

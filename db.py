@@ -41,12 +41,14 @@ def init_db():
 		default_subjects=['Mathematics','Physics','Chemistry','Biology','English','History','Geography','Economics','Computer Science','Art']
 		for subject in default_subjects:cursor.execute('INSERT INTO subjects (name) VALUES (?)',(subject,))
     
-	cursor.execute('SELECT COUNT(*) FROM users')
+	# Remove demo accounts if they exist
+	cursor.execute('DELETE FROM users WHERE username IN (?, ?, ?)',('admin','teacher','student'))
+	
+	# Create single admin user if it doesn't exist
+	cursor.execute('SELECT COUNT(*) FROM users WHERE username = ?',('canyildiz1386',))
 	if cursor.fetchone()[0]==0:
-		admin_password,teacher_password,student_password=hashlib.sha256('admin123'.encode()).hexdigest(),hashlib.sha256('teacher123'.encode()).hexdigest(),hashlib.sha256('student123'.encode()).hexdigest()
-		cursor.execute('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',('admin',admin_password,'admin'))
-		cursor.execute('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',('teacher',teacher_password,'teacher'))
-		cursor.execute('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',('student',student_password,'student'))
+		admin_password=hashlib.sha256('root'.encode()).hexdigest()
+		cursor.execute('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',('canyildiz1386',admin_password,'admin'))
 	conn.commit()
 	conn.close()
 

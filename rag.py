@@ -69,7 +69,9 @@ class SmartStudyRAG:
 		tokenized=[chunk.lower().split() for chunk in all_chunks]
 		self.bm25=BM25Okapi(tokenized)
 		self.embeddings=self.get_embeddings(all_chunks)
-		self.nn=NearestNeighbors(n_neighbors=10,metric='cosine')
+		num_samples=len(self.embeddings)
+		n_neighbors=min(10,max(1,num_samples))
+		self.nn=NearestNeighbors(n_neighbors=n_neighbors,metric='cosine')
 		self.nn.fit(self.embeddings)
 
 	def search(self,query,top_k=5):
@@ -77,11 +79,26 @@ class SmartStudyRAG:
 		query_tokens=query.lower().split()
 		bm25_scores=self.bm25.get_scores(query_tokens)
 		query_embedding=self.get_embeddings([query])
-		nn_distances,nn_indices=self.nn.kneighbors(query_embedding)
+		
+		num_samples=len(self.chunks)
+		if num_samples==0:return []
+		
+		try:
+			max_neighbors=min(self.nn.n_neighbors,num_samples)
+			nn_distances,nn_indices=self.nn.kneighbors(query_embedding,n_neighbors=max_neighbors)
+		except ValueError as e:
+			nn_distances,nn_indices=self.nn.kneighbors(query_embedding,n_neighbors=num_samples)
+		
 		combined_scores=[]
+		nn_score_map={}
+		if len(nn_indices[0])>0:
+			for pos,chunk_idx in enumerate(nn_indices[0]):
+				distance=nn_distances[0][pos] if pos<len(nn_distances[0]) else 1.0
+				nn_score_map[chunk_idx]=1-distance
+		
 		for i in range(len(self.chunks)):
 			bm25_score=bm25_scores[i]
-			nn_score=1-nn_distances[0][i] if i<len(nn_distances[0]) else 0
+			nn_score=nn_score_map.get(i,0)
 			combined_score=self.alpha*bm25_score+(1-self.alpha)*nn_score
 			combined_scores.append((i,combined_score))
 		combined_scores.sort(key=lambda x:x[1],reverse=True)
@@ -101,8 +118,22 @@ class SmartStudyRAG:
 		if not search_results:return "I don't have enough information to answer that question."
 		context="\n\n".join([result['chunk'] for result in search_results])
 		self.rate_limit()
-		response=self.client.chat(message=question,model='command-a-03-2025',preamble="You are a helpful study assistant. Answer questions based on the provided context. Be accurate and helpful.",chat_history=[],documents=[{"text":context}])
-		return response.text
+		strict_preamble="""You are a study assistant. You MUST answer ONLY using information from the provided context documents. Do NOT use any knowledge outside the provided context. If the answer is not in the context, say "I don't have enough information in the provided materials to answer this question." Never make up facts, names, dates, or details that are not explicitly stated in the context. Be precise and factual.
+
+IMPORTANT FORMATTING REQUIREMENTS:
+- Provide your answer as plain, natural text directly
+- Do NOT wrap your answer in boxes, containers, or formatted structures
+- Do NOT use special formatting characters or borders
+- Write your answer as if you are speaking naturally to the user
+- Keep your response concise and to the point
+- Start directly with the answer without preamble phrases like "Based on the context" unless necessary"""
+		response=self.client.chat(message=question,model='command-a-03-2025',preamble=strict_preamble,chat_history=[],documents=[{"text":context}])
+		answer_text=response.text.strip()
+		if answer_text.startswith('```') or answer_text.startswith('```'):
+			lines=answer_text.split('\n')
+			if len(lines)>2 and lines[0].startswith('```'):
+				answer_text='\n'.join(lines[1:-1])
+		return answer_text
 
 	def generate_quiz(self,num_questions=5,description="",subject_id=None,difficulty="medium",existing_questions=None):
 		if not self.chunks:return []
@@ -217,10 +248,8 @@ ALWAYS USE MARKDOWN FORMAT FOR THE QUESTION AND OPTIONS.
 		return quiz_questions
 
 	def _questions_similar(self,question1,question2,threshold=0.8):
-		"""Check if two questions are similar using simple text similarity"""
 		if not question1 or not question2:
 			return False
-		# Simple similarity check - can be improved with more sophisticated methods
 		words1=set(question1.lower().split())
 		words2=set(question2.lower().split())
 		if not words1 or not words2:
@@ -249,7 +278,9 @@ ALWAYS USE MARKDOWN FORMAT FOR THE QUESTION AND OPTIONS.
 			tokenized=[chunk.lower().split() for chunk in all_chunks]
 			self.bm25=BM25Okapi(tokenized)
 			self.embeddings=self.get_embeddings(all_chunks)
-			self.nn=NearestNeighbors(n_neighbors=10,metric='cosine')
+			num_samples=len(self.embeddings)
+			n_neighbors=min(10,max(1,num_samples))
+			self.nn=NearestNeighbors(n_neighbors=n_neighbors,metric='cosine')
 			self.nn.fit(self.embeddings)
 
 	def query(self,question,top_k=5):

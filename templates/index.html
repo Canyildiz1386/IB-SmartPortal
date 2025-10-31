@@ -91,7 +91,7 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
         return;
     }
     
-    // Show loading overlay
+
     document.getElementById('uploadLoading').style.display = 'flex';
     document.getElementById('uploadBtn').disabled = true;
 });
@@ -160,7 +160,6 @@ document.getElementById('uploadForm').addEventListener('submit', function() {
     loading.style.display = 'block';
 });
 
-// Add file drag and drop functionality
 const fileInput = document.querySelector('input[type="file"]');
 const dropArea = fileInput.parentElement;
 

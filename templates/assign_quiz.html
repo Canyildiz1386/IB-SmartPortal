@@ -130,14 +130,12 @@ function updateSelectedCount() {
     document.getElementById('selectedCount').textContent = count;
 }
 
-// Update count when checkboxes change
 document.addEventListener('change', function(e) {
     if (e.target.classList.contains('student-checkbox')) {
         updateSelectedCount();
     }
 });
 
-// Initialize count on page load
 document.addEventListener('DOMContentLoaded', updateSelectedCount);
 </script>
 {% endblock %}

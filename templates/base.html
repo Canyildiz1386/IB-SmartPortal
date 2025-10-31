@@ -17,7 +17,6 @@
             }
         };
         
-        // Configure marked for safe markdown rendering
         if (typeof marked !== 'undefined') {
             marked.setOptions({
                 breaks: true,
@@ -27,13 +26,13 @@
             });
         }
         
-        // Function to render markdown in all elements with class 'markdown-content'
+
         function renderMarkdown() {
             if (typeof marked !== 'undefined') {
                 document.querySelectorAll('.markdown-content').forEach(element => {
                     const markdownText = element.textContent;
                     element.innerHTML = marked.parse(markdownText);
-                    // Re-render math if MathJax is available
+
                     if (window.MathJax && window.MathJax.typesetPromise) {
                         window.MathJax.typesetPromise([element]);
                     }
@@ -41,7 +40,7 @@
             }
         }
         
-        // Render markdown when page loads
+
         document.addEventListener('DOMContentLoaded', renderMarkdown);
     </script>
     <style>
@@ -722,7 +721,7 @@
     {% endwith %}
 
     <script>
-        // Auto-hide toast messages
+
         setTimeout(function() {
             const toasts = document.querySelectorAll('.google-toast');
             toasts.forEach(toast => {
@@ -732,12 +731,12 @@
             });
         }, 5000);
 
-        // Sidebar toggle for mobile
+
         document.getElementById('sidebar-toggle').addEventListener('click', function() {
             document.getElementById('sidebar').classList.toggle('open');
         });
 
-        // Add active class to current page nav item
+
         document.addEventListener('DOMContentLoaded', function() {
             const currentPath = window.location.pathname;
             const navItems = document.querySelectorAll('.nav-item');
@@ -747,18 +746,18 @@
                 }
             });
             
-            // Show sidebar toggle on mobile
+
             if (window.innerWidth <= 768) {
                 document.getElementById('sidebar-toggle').style.display = 'flex';
             }
         });
 
-        // Add ripple effect to buttons
+
         document.querySelectorAll('.google-button').forEach(button => {
             button.classList.add('ripple');
         });
 
-        // Add animations to cards
+
         document.querySelectorAll('.google-card').forEach(card => {
             card.classList.add('animate-slide-in');
         });

@@ -114,11 +114,14 @@ class SmartStudyRAG:
 				seen_files[file_name]=file_count+1
 		return results
 
-	def generate_answer(self,question,search_results):
+	def generate_answer(self,question,search_results,user_grade=None):
 		if not search_results:return "I don't have enough information to answer that question."
 		context="\n\n".join([result['chunk'] for result in search_results])
 		self.rate_limit()
-		strict_preamble="""You are a study assistant. You MUST answer ONLY using information from the provided context documents. Do NOT use any knowledge outside the provided context. If the answer is not in the context, say "I don't have enough information in the provided materials to answer this question." Never make up facts, names, dates, or details that are not explicitly stated in the context. Be precise and factual.
+		grade_context=""
+		if user_grade:
+			grade_context=f"\n\nIMPORTANT: The student asking this question is in {user_grade} grade. Please tailor your explanation to be appropriate for their grade level. Use language and concepts that are suitable for a {user_grade} grade student. Simplify complex concepts and provide examples that are relevant to their educational level."
+		strict_preamble=f"""You are a study assistant. You MUST answer ONLY using information from the provided context documents. Do NOT use any knowledge outside the provided context. If the answer is not in the context, say "I don't have enough information in the provided materials to answer this question." Never make up facts, names, dates, or details that are not explicitly stated in the context. Be precise and factual.{grade_context}
 
 IMPORTANT FORMATTING REQUIREMENTS:
 - Provide your answer as plain, natural text directly
@@ -281,8 +284,8 @@ ALWAYS USE MARKDOWN FORMAT FOR THE QUESTION AND OPTIONS.
 			self.nn=NearestNeighbors(n_neighbors=n_neighbors,metric='cosine')
 			self.nn.fit(self.embeddings)
 
-	def query(self,question,top_k=5):
+	def query(self,question,top_k=5,user_grade=None):
 		results=self.search(question,top_k)
-		answer=self.generate_answer(question,results)
+		answer=self.generate_answer(question,results,user_grade=user_grade)
 		return answer,results
 

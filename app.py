@@ -15,7 +15,7 @@ from database.db import (init_db, verify_user, add_material, log_qa, get_materia
                 get_student_quizzes, get_quiz_by_id, update_quiz_score, get_db_connection, get_non_indexed_materials,
                 update_material_indexed_status, get_subjects_with_counts, get_user_face_image, update_user_face_image,
                 add_mood_tracking, get_user_mood_today, get_user_mood_history, get_all_student_moods,
-                get_student_moods_by_teacher, get_all_users_with_faces)
+                get_student_moods_by_teacher, get_all_users_with_faces, get_user_grade)
 from utils.auth import login_required, admin_required, teacher_required, login_user, logout_user, get_current_user
 from services.rag_service import get_rag_system
 from database.session_db import (create_study_session, get_study_sessions, get_session_participants,
@@ -239,7 +239,8 @@ def chat():
         is_ajax=request.headers.get('X-Requested-With')=='XMLHttpRequest'
         if question:
             try:
-                answer,sources=rag_system.query(question,top_k=3)
+                user_grade=get_user_grade(user['id'])
+                answer,sources=rag_system.query(question,top_k=3,user_grade=user_grade)
                 log_qa(session['user_id'],question,answer)
                 if 'chat_history' not in session:session['chat_history']=[]
                 session['chat_history'].append({'question':question,'answer':answer,'sources':sources})
@@ -298,6 +299,7 @@ def export_quiz():
 def admin():
     if request.method=='POST':
         username,password,role,subject_ids=request.form['username'],request.form['password'],request.form['role'],request.form.getlist('subject_ids')
+        grade=request.form.get('grade','').strip() if role=='student' else None
         face_image=request.files.get('face_image')
         face_image_path=None
         if face_image and face_image.filename:
@@ -310,7 +312,7 @@ def admin():
                 users,subjects=get_all_users(),get_subjects()
                 return render_template('admin.html',users=users,all_subjects=subjects)
         try:
-            user_id=add_user(username,password,role,face_image_path)
+            user_id=add_user(username,password,role,face_image_path,grade)
             if subject_ids and role in ['student','teacher']:
                 for subject_id in subject_ids:assign_user_subject(user_id,subject_id)
             flash(f'User {username} created successfully!','success')
@@ -328,9 +330,10 @@ def edit_user(user_id):
         role = request.form['role']
         subject_ids = request.form.getlist('subject_ids')
         password=request.form.get('password','').strip()
+        grade=request.form.get('grade','').strip() if role=='student' else None
         face_image=request.files.get('face_image')
         try:
-            cursor.execute('UPDATE users SET username = ?, role = ? WHERE id = ?',(username,role,user_id))
+            cursor.execute('UPDATE users SET username = ?, role = ?, grade = ? WHERE id = ?',(username,role,grade,user_id))
             if password:
                 password_hash=hashlib.sha256(password.encode()).hexdigest()
                 cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?',(password_hash,user_id))
@@ -358,13 +361,13 @@ def edit_user(user_id):
             return redirect(url_for('edit_user',user_id=user_id))
     conn=get_db_connection()
     cursor=conn.cursor()
-    cursor.execute('SELECT id, username, role FROM users WHERE id = ?',(user_id,))
+    cursor.execute('SELECT id, username, role, grade FROM users WHERE id = ?',(user_id,))
     user=cursor.fetchone()
     if not user:
         conn.close()
         flash('User not found.','error')
         return redirect(url_for('admin'))
-    user_dict={'id':user[0],'username':user[1],'role':user[2]}
+    user_dict={'id':user[0],'username':user[1],'role':user[2],'grade':user[3]}
     conn.close()
     user_subjects=get_user_subjects(user_id)
     all_subjects=get_subjects()

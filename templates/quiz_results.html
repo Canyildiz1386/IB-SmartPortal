@@ -159,14 +159,14 @@ async function getExplanation(index, question, options, correctAnswer, userAnswe
     const explanationDiv = document.getElementById(`explanation-${index}`);
     const contentDiv = document.getElementById(`explanation-content-${index}`);
     
-    // Toggle if already shown
+
     if (explanationDiv.style.display === 'block') {
         explanationDiv.style.display = 'none';
         btn.innerHTML = '<span class="material-icons" style="font-size: 18px; margin-right: 8px;">psychology</span>Get AI Explanation';
         return;
     }
     
-    // Show loading
+
     btn.disabled = true;
     btn.innerHTML = '<span class="material-icons" style="font-size: 18px; margin-right: 8px;">hourglass_empty</span>Loading...';
     loading.style.display = 'block';
@@ -189,7 +189,7 @@ async function getExplanation(index, question, options, correctAnswer, userAnswe
         
         if (data.success) {
             contentDiv.textContent = data.explanation;
-            // Render markdown
+
             if (typeof marked !== 'undefined') {
                 contentDiv.innerHTML = marked.parse(data.explanation);
             }

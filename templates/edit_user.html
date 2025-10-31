@@ -70,6 +70,18 @@
                 </select>
             </div>
             
+            <div id="gradeSection" style="display: {% if user.role == 'student' %}block{% else %}none{% endif %};">
+                <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Grade</label>
+                <select name="grade" class="google-input">
+                    <option value="">Select Grade</option>
+                    <option value="9th" {% if user.grade == '9th' %}selected{% endif %}>9th Grade</option>
+                    <option value="10th" {% if user.grade == '10th' %}selected{% endif %}>10th Grade</option>
+                    <option value="11th" {% if user.grade == '11th' %}selected{% endif %}>11th Grade</option>
+                    <option value="12th" {% if user.grade == '12th' %}selected{% endif %}>12th Grade</option>
+                </select>
+                <p style="margin: 8px 0 0 0; color: #5f6368; font-size: 12px;">Grade level helps AI provide age-appropriate answers</p>
+            </div>
+            
             <div id="subjectsSection" style="display: {% if user.role in ['student', 'teacher'] %}block{% else %}none{% endif %};">
                 <label style="display: block; font-weight: 500; margin-bottom: 12px; color: #202124; font-size: 14px;">Assigned Subjects</label>
                 <div style="max-height: 300px; overflow-y: auto; border: 1px solid #dadce0; border-radius: 8px; padding: 16px; background: #f8f9fa;">
@@ -108,10 +120,17 @@
 <script>
 document.getElementById('roleSelect').addEventListener('change', function() {
     const subjectsSection = document.getElementById('subjectsSection');
+    const gradeSection = document.getElementById('gradeSection');
     if (this.value === 'student' || this.value === 'teacher') {
         subjectsSection.style.display = 'block';
+        if (this.value === 'student') {
+            gradeSection.style.display = 'block';
+        } else {
+            gradeSection.style.display = 'none';
+        }
     } else {
         subjectsSection.style.display = 'none';
+        gradeSection.style.display = 'none';
     }
 });
 

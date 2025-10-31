@@ -207,7 +207,7 @@ function createNewNote() {
     document.getElementById('noteSubject').value = '';
     document.getElementById('modalTitle').textContent = 'Create New Note';
     
-    // Clear image previews
+
     document.getElementById('imagePreviews').innerHTML = '';
     document.getElementById('imagePreviewSection').style.display = 'none';
     
@@ -215,7 +215,7 @@ function createNewNote() {
 }
 
 async function openNote(noteId) {
-    // Same as edit - open note in editor for viewing/editing
+
     const fakeEvent = { stopPropagation: () => {} };
     await editNote(noteId, fakeEvent);
 }
@@ -224,27 +224,27 @@ async function editNote(noteId, event) {
     event.stopPropagation();
     currentNoteId = noteId;
     
-    // Clear previous image previews
+
     document.getElementById('imagePreviews').innerHTML = '';
     document.getElementById('imagePreviewSection').style.display = 'none';
     
-    // Show loading state
+
     document.getElementById('modalTitle').textContent = 'Loading...';
     document.getElementById('noteEditorModal').style.display = 'block';
     
-    // Fetch note data from server
+
     try {
         const response = await fetch(`/get_note/${noteId}`);
         const data = await response.json();
         
         if (data.success) {
-            // Populate form fields with existing note data
+
             document.getElementById('noteTitle').value = data.note.title || '';
             document.getElementById('noteContent').value = data.note.content || '';
             document.getElementById('noteSubject').value = data.note.subject_id || '';
             document.getElementById('modalTitle').textContent = 'Edit Note';
             
-            // Extract and show existing images from content
+
             const content = data.note.content || '';
             const imageRegex = /!\[([^\]]*)\]\(data:image\/[^;]+;base64,[^\)]+\)/g;
             let match;
@@ -337,7 +337,7 @@ function handleImageUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
     
-    // Check file size (limit to 2MB for base64 - better performance)
+
     if (file.size > 2 * 1024 * 1024) {
         alert('Image is too large. Please use an image smaller than 2MB for best performance.');
         event.target.value = '';
@@ -349,24 +349,24 @@ function handleImageUpload(event) {
         const imageDataUrl = e.target.result;
         const fileName = file.name || 'Image';
         
-        // Insert image as markdown with base64 data URL
+
         const textarea = document.getElementById('noteContent');
         const imageMarkdown = `\n![${fileName}](${imageDataUrl})\n`;
         
-        // Insert at cursor position or at the end
+
         const cursorPos = textarea.selectionStart || 0;
         const textBefore = textarea.value.substring(0, cursorPos);
         const textAfter = textarea.value.substring(cursorPos);
         textarea.value = textBefore + imageMarkdown + textAfter;
         
-        // Move cursor after inserted image
+
         textarea.selectionStart = textarea.selectionEnd = cursorPos + imageMarkdown.length;
         textarea.focus();
         
-        // Show image preview
+
         addImagePreview(imageDataUrl, fileName);
         
-        // Show success notification
+
         const notification = document.createElement('div');
         notification.style.cssText = 'position: fixed; bottom: 24px; right: 24px; background: #34a853; color: white; padding: 16px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10001; display: flex; align-items: center; gap: 12px; animation: slideInRight 0.3s;';
         notification.innerHTML = `
@@ -384,7 +384,7 @@ function handleImageUpload(event) {
     };
     reader.readAsDataURL(file);
     
-    // Reset file input
+
     event.target.value = '';
 }
 
@@ -392,14 +392,14 @@ function addImagePreview(imageDataUrl, fileName) {
     const previewSection = document.getElementById('imagePreviewSection');
     const previewsContainer = document.getElementById('imagePreviews');
     
-    // Show preview section
+
     previewSection.style.display = 'block';
     
-    // Create preview thumbnail
+
     const preview = document.createElement('div');
     preview.style.cssText = 'position: relative; width: 80px; height: 80px; border-radius: 8px; overflow: hidden; border: 2px solid #e8eaed; cursor: pointer;';
     preview.onclick = function() {
-        // Open full image in modal
+
         showImageModal(imageDataUrl, fileName);
     };
     
@@ -450,7 +450,7 @@ function toggleVoiceInput() {
 }
 
 function startVoiceInput() {
-    // Check if browser supports Web Speech API
+
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
         alert('Sorry, your browser does not support real-time speech recognition.\n\nPlease use:\n• Chrome\n• Edge\n• Safari');
         return;
@@ -459,10 +459,10 @@ function startVoiceInput() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRecognition();
     
-    // Configure for real-time recognition
-    recognition.continuous = true;  // Keep listening
-    recognition.interimResults = true;  // Show interim results in real-time
-    recognition.lang = 'en-US';  // Set language
+
+    recognition.continuous = true;  
+    recognition.interimResults = true; 
+    recognition.lang = 'en-US';  
     
     const voiceBtn = document.getElementById('voiceInputBtn');
     const textarea = document.getElementById('noteContent');
@@ -473,7 +473,6 @@ function startVoiceInput() {
         voiceBtn.style.background = '#ea4335';
         voiceBtn.style.color = 'white';
         
-        // Show real-time recording indicator
         const indicator = document.createElement('div');
         indicator.id = 'voiceIndicator';
         indicator.style.cssText = 'position: fixed; top: 24px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #ea4335, #d32f2f); color: white; padding: 14px 24px; border-radius: 24px; box-shadow: 0 4px 16px rgba(234, 67, 53, 0.4); z-index: 10001; display: flex; align-items: center; gap: 12px; animation: slideDown 0.3s;';
@@ -491,7 +490,7 @@ function startVoiceInput() {
             const transcript = event.results[i][0].transcript;
             
             if (event.results[i].isFinal) {
-                // Final result - add to textarea
+
                 const cursorPos = textarea.selectionStart || textarea.value.length;
                 const textBefore = textarea.value.substring(0, cursorPos);
                 const textAfter = textarea.value.substring(cursorPos);
@@ -499,7 +498,7 @@ function startVoiceInput() {
                 textarea.selectionStart = textarea.selectionEnd = cursorPos + transcript.length + 1;
                 textarea.focus();
             } else {
-                // Interim result - show in indicator
+
                 interim = transcript;
                 const indicator = document.getElementById('voiceIndicator');
                 if (indicator && interim) {
@@ -521,7 +520,7 @@ function startVoiceInput() {
     
     recognition.onend = function() {
         if (isRecording) {
-            // Auto-restart if still recording
+
             try {
                 recognition.start();
             } catch (e) {
@@ -548,7 +547,7 @@ function stopVoiceInput() {
         voiceBtn.style.background = '';
         voiceBtn.style.color = '';
         
-        // Remove indicator with animation
+
         const indicator = document.getElementById('voiceIndicator');
         if (indicator) {
             indicator.style.opacity = '0';
@@ -560,7 +559,6 @@ function stopVoiceInput() {
 }
 
 
-// Search functionality
 document.getElementById('searchNotes').addEventListener('input', function(e) {
     const searchTerm = e.target.value.toLowerCase();
     const noteCards = document.querySelectorAll('[onclick*="openNote"]');

@@ -4,8 +4,10 @@ DATABASE='smart_study.db'
 def init_db():
 	conn=sqlite3.connect(DATABASE)
 	cursor=conn.cursor()
-	cursor.execute('''CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'student',face_image TEXT)''')
+	cursor.execute('''CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'student',face_image TEXT,grade TEXT)''')
 	try:cursor.execute('ALTER TABLE users ADD COLUMN face_image TEXT')
+	except sqlite3.OperationalError:pass
+	try:cursor.execute('ALTER TABLE users ADD COLUMN grade TEXT')
 	except sqlite3.OperationalError:pass
     
 	cursor.execute('''CREATE TABLE IF NOT EXISTS subjects (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT UNIQUE NOT NULL)''')
@@ -69,11 +71,11 @@ def verify_user(username,password):
 	if user:return {'id':user[0],'username':user[1],'role':user[2]}
 	return None
 
-def add_user(username,password,role,face_image=None):
+def add_user(username,password,role,face_image=None,grade=None):
 	conn=get_db_connection()
 	cursor=conn.cursor()
 	password_hash=hashlib.sha256(password.encode()).hexdigest()
-	cursor.execute('INSERT INTO users (username, password_hash, role, face_image) VALUES (?, ?, ?, ?)',(username,password_hash,role,face_image))
+	cursor.execute('INSERT INTO users (username, password_hash, role, face_image, grade) VALUES (?, ?, ?, ?, ?)',(username,password_hash,role,face_image,grade))
 	user_id=cursor.lastrowid
 	conn.commit()
 	conn.close()
@@ -83,6 +85,14 @@ def get_user_face_image(user_id):
 	conn=get_db_connection()
 	cursor=conn.cursor()
 	cursor.execute('SELECT face_image FROM users WHERE id = ?',(user_id,))
+	result=cursor.fetchone()
+	conn.close()
+	return result[0] if result and result[0] else None
+
+def get_user_grade(user_id):
+	conn=get_db_connection()
+	cursor=conn.cursor()
+	cursor.execute('SELECT grade FROM users WHERE id = ?',(user_id,))
 	result=cursor.fetchone()
 	conn.close()
 	return result[0] if result and result[0] else None
@@ -165,8 +175,8 @@ def delete_user(user_id):
 def get_all_users():
 	conn=get_db_connection()
 	cursor=conn.cursor()
-	cursor.execute('SELECT id, username, role FROM users ORDER BY username')
-	users=[{'id':row[0],'username':row[1],'role':row[2]} for row in cursor.fetchall()]
+	cursor.execute('SELECT id, username, role, grade FROM users ORDER BY username')
+	users=[{'id':row[0],'username':row[1],'role':row[2],'grade':row[3]} for row in cursor.fetchall()]
 	conn.close()
 	return users
 

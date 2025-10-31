@@ -9,7 +9,7 @@ def init_rag_system():
     if rag_instance is None:
         cohere_key = os.getenv('COHERE_API_KEY')
         if not cohere_key:
-            cohere_key = "dummy_key_for_development"
+            cohere_key = "nothing"
         rag_instance = SmartStudyRAG(cohere_key)
     try:
         material_list = get_materials()

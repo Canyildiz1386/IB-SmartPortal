@@ -8,5 +8,7 @@ numpy
 werkzeug
 Pillow
 opencv-python
+tensorflow<2.20.0
+tf-keras
 deepface
 eventlet

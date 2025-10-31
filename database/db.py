@@ -1,6 +1,34 @@
 import sqlite3,hashlib,csv,io,json
 DATABASE='smart_study.db'
 
+def _run_query(query,params=None,fetch_one=False,fetch_all=False):
+	db=sqlite3.connect(DATABASE)
+	cur=db.cursor()
+	if params:
+		cur.execute(query,params)
+	else:
+		cur.execute(query)
+	if fetch_one:
+		row=cur.fetchone()
+		db.close()
+		return row
+	elif fetch_all:
+		rows=cur.fetchall()
+		db.close()
+		return rows
+	else:
+		db.commit()
+		db.close()
+
+def _execute_update(query,params):
+	db=sqlite3.connect(DATABASE)
+	cur=db.cursor()
+	cur.execute(query,params)
+	new_id=cur.lastrowid
+	db.commit()
+	db.close()
+	return new_id
+
 def init_db():
 	conn=sqlite3.connect(DATABASE)
 	cursor=conn.cursor()
@@ -59,315 +87,460 @@ def init_db():
 	conn.commit()
 	conn.close()
 
-def get_db_connection():return sqlite3.connect(DATABASE)
+def get_db_connection():
+	return sqlite3.connect(DATABASE)
+
+def _get_conn():
+	return sqlite3.connect(DATABASE)
 
 def verify_user(username,password):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	password_hash=hashlib.sha256(password.encode()).hexdigest()
-	cursor.execute('SELECT id, username, role FROM users WHERE username = ? AND password_hash = ?',(username,password_hash))
-	user=cursor.fetchone()
-	conn.close()
-	if user:return {'id':user[0],'username':user[1],'role':user[2]}
-	return None
+	try:
+		conn=get_db_connection()
+		c=conn.cursor()
+		h=hashlib.sha256(password.encode()).hexdigest()
+		c.execute('SELECT id, username, role FROM users WHERE username = ? AND password_hash = ?',(username,h))
+		u=c.fetchone()
+		conn.close()
+		if u:
+			return {'id':u[0],'username':u[1],'role':u[2]}
+		return None
+	except Exception:
+		return None
 
 def add_user(username,password,role,face_image=None,grade=None):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	password_hash=hashlib.sha256(password.encode()).hexdigest()
-	cursor.execute('INSERT INTO users (username, password_hash, role, face_image, grade) VALUES (?, ?, ?, ?, ?)',(username,password_hash,role,face_image,grade))
-	user_id=cursor.lastrowid
-	conn.commit()
-	conn.close()
-	return user_id
+	try:
+		conn=get_db_connection()
+		c=conn.cursor()
+		h=hashlib.sha256(password.encode()).hexdigest()
+		c.execute('INSERT INTO users (username, password_hash, role, face_image, grade) VALUES (?, ?, ?, ?, ?)',(username,h,role,face_image,grade))
+		id=c.lastrowid
+		conn.commit()
+		conn.close()
+		return id
+	except Exception:
+		return None
 
 def get_user_face_image(user_id):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('SELECT face_image FROM users WHERE id = ?',(user_id,))
-	result=cursor.fetchone()
-	conn.close()
-	return result[0] if result and result[0] else None
+	try:
+		conn=get_db_connection()
+		c=conn.cursor()
+		c.execute('SELECT face_image FROM users WHERE id = ?',(user_id,))
+		r=c.fetchone()
+		conn.close()
+		if r and r[0]:
+			return r[0]
+		return None
+	except Exception:
+		return None
 
 def get_user_grade(user_id):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('SELECT grade FROM users WHERE id = ?',(user_id,))
-	result=cursor.fetchone()
-	conn.close()
-	return result[0] if result and result[0] else None
+	try:
+		conn=get_db_connection()
+		c=conn.cursor()
+		c.execute('SELECT grade FROM users WHERE id = ?',(user_id,))
+		r=c.fetchone()
+		conn.close()
+		if r and r[0]:
+			return r[0]
+		return None
+	except Exception:
+		return None
 
 def get_all_users_with_faces():
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('SELECT id, username, role, face_image FROM users WHERE face_image IS NOT NULL AND face_image != ""')
-	users=[{'id':row[0],'username':row[1],'role':row[2],'face_image':row[3]} for row in cursor.fetchall()]
-	conn.close()
-	return users
+	try:
+		conn=get_db_connection()
+		c=conn.cursor()
+		c.execute('SELECT id, username, role, face_image FROM users WHERE face_image IS NOT NULL AND face_image != ""')
+		rows=c.fetchall()
+		conn.close()
+		users=[]
+		for r in rows:
+			users.append({'id':r[0],'username':r[1],'role':r[2],'face_image':r[3]})
+		return users
+	except Exception:
+		return []
 
 def update_user_face_image(user_id,face_image_path):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('UPDATE users SET face_image = ? WHERE id = ?',(face_image_path,user_id))
-	conn.commit()
-	conn.close()
+	try:
+		conn=get_db_connection()
+		c=conn.cursor()
+		c.execute('UPDATE users SET face_image = ? WHERE id = ?',(face_image_path,user_id))
+		conn.commit()
+		conn.close()
+	except Exception:
+		pass
 
 def add_mood_tracking(user_id,mood,age=None,gender=None,race=None):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	from datetime import date
-	today=date.today().strftime("%Y-%m-%d")
-	cursor.execute('INSERT OR REPLACE INTO mood_tracking (user_id, date, mood, age, gender, race) VALUES (?, ?, ?, ?, ?, ?)',(user_id,today,mood,age,gender,race))
-	conn.commit()
-	conn.close()
+	try:
+		conn=get_db_connection()
+		c=conn.cursor()
+		from datetime import date
+		d=date.today().strftime("%Y-%m-%d")
+		c.execute('INSERT OR REPLACE INTO mood_tracking (user_id, date, mood, age, gender, race) VALUES (?, ?, ?, ?, ?, ?)',(user_id,d,mood,age,gender,race))
+		conn.commit()
+		conn.close()
+	except Exception:
+		pass
 
 def get_user_mood_today(user_id):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	from datetime import date
-	today=date.today().strftime("%Y-%m-%d")
-	cursor.execute('SELECT mood FROM mood_tracking WHERE user_id = ? AND date = ?',(user_id,today))
-	result=cursor.fetchone()
-	conn.close()
-	return result[0] if result else None
+	try:
+		conn=get_db_connection()
+		c=conn.cursor()
+		from datetime import date
+		d=date.today().strftime("%Y-%m-%d")
+		c.execute('SELECT mood FROM mood_tracking WHERE user_id = ? AND date = ?',(user_id,d))
+		r=c.fetchone()
+		conn.close()
+		if r:
+			return r[0]
+		return None
+	except Exception:
+		return None
 
 def get_user_mood_history(user_id,limit=30):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('SELECT date, mood FROM mood_tracking WHERE user_id = ? ORDER BY date DESC LIMIT ?',(user_id,limit))
-	results=cursor.fetchall()
-	conn.close()
-	return [{'date':row[0],'mood':row[1]} for row in results]
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('SELECT date, mood FROM mood_tracking WHERE user_id = ? ORDER BY date DESC LIMIT ?',(user_id,limit))
+		rows=cursor.fetchall()
+		conn.close()
+		history=[]
+		for r in rows:
+			history.append({'date':r[0],'mood':r[1]})
+		return history
+	except Exception:
+		return []
 
 def get_all_student_moods():
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('''SELECT u.id, u.username, mt.date, mt.mood, mt.login_time 
-		FROM users u 
-		LEFT JOIN mood_tracking mt ON u.id = mt.user_id 
-		WHERE u.role = 'student' 
-		ORDER BY mt.login_time DESC''')
-	results=cursor.fetchall()
-	conn.close()
-	return [{'user_id':row[0],'username':row[1],'date':row[2],'mood':row[3],'login_time':row[4]} for row in results if row[2]]
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('''SELECT u.id, u.username, mt.date, mt.mood, mt.login_time 
+			FROM users u 
+			LEFT JOIN mood_tracking mt ON u.id = mt.user_id 
+			WHERE u.role = 'student' 
+			ORDER BY mt.login_time DESC''')
+		rows=cursor.fetchall()
+		conn.close()
+		moods=[]
+		for r in rows:
+			if r[2]:
+				moods.append({'user_id':r[0],'username':r[1],'date':r[2],'mood':r[3],'login_time':r[4]})
+		return moods
+	except Exception:
+		return []
 
 def get_student_moods_by_teacher(teacher_id):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('''SELECT DISTINCT u.id, u.username, mt.date, mt.mood, mt.login_time 
-		FROM users u 
-		JOIN user_subjects us1 ON u.id = us1.user_id 
-		JOIN user_subjects us2 ON us1.subject_id = us2.subject_id 
-		LEFT JOIN mood_tracking mt ON u.id = mt.user_id 
-		WHERE u.role = 'student' AND us2.user_id = ? 
-		ORDER BY mt.login_time DESC''',(teacher_id,))
-	results=cursor.fetchall()
-	conn.close()
-	return [{'user_id':row[0],'username':row[1],'date':row[2],'mood':row[3],'login_time':row[4]} for row in results if row[2]]
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('''SELECT DISTINCT u.id, u.username, mt.date, mt.mood, mt.login_time 
+			FROM users u 
+			JOIN user_subjects us1 ON u.id = us1.user_id 
+			JOIN user_subjects us2 ON us1.subject_id = us2.subject_id 
+			LEFT JOIN mood_tracking mt ON u.id = mt.user_id 
+			WHERE u.role = 'student' AND us2.user_id = ? 
+			ORDER BY mt.login_time DESC''',(teacher_id,))
+		rows=cursor.fetchall()
+		conn.close()
+		moods=[]
+		for r in rows:
+			if r[2]:
+				moods.append({'user_id':r[0],'username':r[1],'date':r[2],'mood':r[3],'login_time':r[4]})
+		return moods
+	except Exception:
+		return []
 
 def delete_user(user_id):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('DELETE FROM users WHERE id = ?',(user_id,))
-	conn.commit()
-	conn.close()
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('DELETE FROM users WHERE id = ?',(user_id,))
+		conn.commit()
+		conn.close()
+	except Exception:
+		pass
 
 def get_all_users():
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('SELECT id, username, role, grade FROM users ORDER BY username')
-	users=[{'id':row[0],'username':row[1],'role':row[2],'grade':row[3]} for row in cursor.fetchall()]
-	conn.close()
-	return users
+	try:
+		conn=get_db_connection()
+		c=conn.cursor()
+		c.execute('SELECT id, username, role, grade FROM users ORDER BY username')
+		rows=c.fetchall()
+		conn.close()
+		users=[]
+		for r in rows:
+			users.append({'id':r[0],'username':r[1],'role':r[2],'grade':r[3]})
+		return users
+	except Exception:
+		return []
 
 def add_material(filename,content,subject_id,indexed=0):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	sha=hashlib.sha256(content.encode()).hexdigest()
-	cursor.execute('INSERT INTO materials (filename, sha, content, subject_id, indexed) VALUES (?, ?, ?, ?, ?)',(filename,sha,content,subject_id,indexed))
-	material_id=cursor.lastrowid
-	conn.commit()
-	conn.close()
-	return material_id
+	try:
+		conn=get_db_connection()
+		c=conn.cursor()
+		h=hashlib.sha256(content.encode()).hexdigest()
+		c.execute('INSERT INTO materials (filename, sha, content, subject_id, indexed) VALUES (?, ?, ?, ?, ?)',(filename,h,content,subject_id,indexed))
+		id=c.lastrowid
+		conn.commit()
+		conn.close()
+		return id
+	except Exception:
+		return None
 
 def get_materials():
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('SELECT * FROM materials ORDER BY upload_time DESC')
-	rows=cursor.fetchall()
-	materials=[{'id':row[0],'filename':row[1],'sha':row[2],'content':row[3],'subject_id':row[4],'upload_time':row[5],'indexed':row[6] if len(row)>6 else 0} for row in rows]
-	conn.close()
-	return materials
+	try:
+		conn=get_db_connection()
+		c=conn.cursor()
+		c.execute('SELECT * FROM materials ORDER BY upload_time DESC')
+		rows=c.fetchall()
+		conn.close()
+		materials=[]
+		for r in rows:
+			idx=r[6] if len(r)>6 else 0
+			materials.append({'id':r[0],'filename':r[1],'sha':r[2],'content':r[3],'subject_id':r[4],'upload_time':r[5],'indexed':idx})
+		return materials
+	except Exception:
+		return []
 
 def log_qa(user_id,question,answer):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('INSERT INTO qa_logs (user_id, question, answer) VALUES (?, ?, ?)',(user_id,question,answer))
-	conn.commit()
-	conn.close()
+	try:
+		conn=get_db_connection()
+		c=conn.cursor()
+		c.execute('INSERT INTO qa_logs (user_id, question, answer) VALUES (?, ?, ?)',(user_id,question,answer))
+		conn.commit()
+		conn.close()
+	except Exception:
+		pass
 
 def get_qa_logs(user_id=None):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	if user_id:
-		cursor.execute('''SELECT qa.question, qa.answer, qa.timestamp, u.username FROM qa_logs qa JOIN users u ON qa.user_id = u.id WHERE qa.user_id = ? ORDER BY qa.timestamp DESC''',(user_id,))
-	else:
-		cursor.execute('''SELECT qa.question, qa.answer, qa.timestamp, u.username FROM qa_logs qa JOIN users u ON qa.user_id = u.id ORDER BY qa.timestamp DESC''')
-	logs=[{'question':row[0],'answer':row[1],'timestamp':row[2],'username':row[3]} for row in cursor.fetchall()]
-	conn.close()
-	return logs
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		if user_id:
+			cursor.execute('''SELECT qa.question, qa.answer, qa.timestamp, u.username FROM qa_logs qa JOIN users u ON qa.user_id = u.id WHERE qa.user_id = ? ORDER BY qa.timestamp DESC''',(user_id,))
+		else:
+			cursor.execute('''SELECT qa.question, qa.answer, qa.timestamp, u.username FROM qa_logs qa JOIN users u ON qa.user_id = u.id ORDER BY qa.timestamp DESC''')
+		rows=cursor.fetchall()
+		conn.close()
+		logs=[]
+		for r in rows:
+			logs.append({'question':r[0],'answer':r[1],'timestamp':r[2],'username':r[3]})
+		return logs
+	except Exception:
+		return []
 
 def log_quiz_result(user_id,score,answers,quiz_id):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	answers_json=json.dumps(answers)
-	cursor.execute('INSERT INTO quiz_results (user_id, quiz_id, score, answers) VALUES (?, ?, ?, ?)',(user_id,quiz_id,score,answers_json))
-	result_id=cursor.lastrowid
-	conn.commit()
-	conn.close()
-	return result_id
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		answers_json_str=json.dumps(answers)
+		cursor.execute('INSERT INTO quiz_results (user_id, quiz_id, score, answers) VALUES (?, ?, ?, ?)',(user_id,quiz_id,score,answers_json_str))
+		result_id=cursor.lastrowid
+		conn.commit()
+		conn.close()
+		return result_id
+	except Exception:
+		return None
 
 def get_quiz_results(user_id=None):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	if user_id:
-		cursor.execute('''SELECT qr.score, qr.time, qr.answers, u.username, q.title FROM quiz_results qr JOIN users u ON qr.user_id = u.id JOIN quizzes q ON qr.quiz_id = q.id WHERE qr.user_id = ? ORDER BY qr.time DESC''',(user_id,))
-	else:
-		cursor.execute('''SELECT qr.score, qr.time, qr.answers, u.username, q.title FROM quiz_results qr JOIN users u ON qr.user_id = u.id JOIN quizzes q ON qr.quiz_id = q.id ORDER BY qr.time DESC''')
-	results=[{'score':row[0],'time':row[1],'answers':json.loads(row[2]),'username':row[3],'quiz_title':row[4]} for row in cursor.fetchall()]
-	conn.close()
-	return results
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		if user_id:
+			cursor.execute('''SELECT qr.score, qr.time, qr.answers, u.username, q.title FROM quiz_results qr JOIN users u ON qr.user_id = u.id JOIN quizzes q ON qr.quiz_id = q.id WHERE qr.user_id = ? ORDER BY qr.time DESC''',(user_id,))
+		else:
+			cursor.execute('''SELECT qr.score, qr.time, qr.answers, u.username, q.title FROM quiz_results qr JOIN users u ON qr.user_id = u.id JOIN quizzes q ON qr.quiz_id = q.id ORDER BY qr.time DESC''')
+		rows=cursor.fetchall()
+		conn.close()
+		results=[]
+		for r in rows:
+			answers=json.loads(r[2])
+			results.append({'score':r[0],'time':r[1],'answers':answers,'username':r[3],'quiz_title':r[4]})
+		return results
+	except Exception:
+		return []
 
 def export_quiz_csv(quiz_data):
-	output=io.StringIO()
-	writer=csv.writer(output)
-	writer.writerow(['Question','Option A','Option B','Option C','Option D','Correct Answer'])
-	for question in quiz_data:
-		writer.writerow([question['question'],question['options'][0],question['options'][1],question['options'][2],question['options'][3],question['correct']])
-	return output.getvalue()
+	try:
+		buf=io.StringIO()
+		writer=csv.writer(buf)
+		writer.writerow(['Question','Option A','Option B','Option C','Option D','Correct Answer'])
+		for q in quiz_data:
+			writer.writerow([q['question'],q['options'][0],q['options'][1],q['options'][2],q['options'][3],q['correct']])
+		return buf.getvalue()
+	except Exception:
+		return ""
 
 def get_subjects():
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('SELECT * FROM subjects ORDER BY name')
-	subjects=[{'id':row[0],'name':row[1]} for row in cursor.fetchall()]
-	conn.close()
-	return subjects
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('SELECT * FROM subjects ORDER BY name')
+		rows=cursor.fetchall()
+		conn.close()
+		subjects=[]
+		for r in rows:
+			subjects.append({'id':r[0],'name':r[1]})
+		return subjects
+	except Exception:
+		return []
 
 def get_user_subjects(user_id):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('''SELECT s.id, s.name FROM subjects s JOIN user_subjects us ON s.id = us.subject_id WHERE us.user_id = ? ORDER BY s.name''',(user_id,))
-	subjects=[{'id':row[0],'name':row[1]} for row in cursor.fetchall()]
-	conn.close()
-	return subjects
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('''SELECT s.id, s.name FROM subjects s JOIN user_subjects us ON s.id = us.subject_id WHERE us.user_id = ? ORDER BY s.name''',(user_id,))
+		rows=cursor.fetchall()
+		conn.close()
+		subjects=[]
+		for r in rows:
+			subjects.append({'id':r[0],'name':r[1]})
+		return subjects
+	except Exception:
+		return []
 
 def assign_user_subject(user_id,subject_id):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('INSERT OR IGNORE INTO user_subjects (user_id, subject_id) VALUES (?, ?)',(user_id,subject_id))
-	conn.commit()
-	conn.close()
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('INSERT OR IGNORE INTO user_subjects (user_id, subject_id) VALUES (?, ?)',(user_id,subject_id))
+		conn.commit()
+		conn.close()
+	except Exception:
+		pass
 
 def remove_user_subject(user_id,subject_id):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('DELETE FROM user_subjects WHERE user_id = ? AND subject_id = ?',(user_id,subject_id))
-	conn.commit()
-	conn.close()
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('DELETE FROM user_subjects WHERE user_id = ? AND subject_id = ?',(user_id,subject_id))
+		conn.commit()
+		conn.close()
+	except Exception:
+		pass
 
 def create_quiz(title,subject_id,teacher_id,questions,difficulty='medium'):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	questions_json=json.dumps(questions)
 	try:
-		cursor.execute('INSERT INTO quizzes (title, subject_id, teacher_id, questions, difficulty) VALUES (?, ?, ?, ?, ?)',(title,subject_id,teacher_id,questions_json,difficulty))
-	except sqlite3.OperationalError:
-		cursor.execute('INSERT INTO quizzes (title, subject_id, teacher_id, questions) VALUES (?, ?, ?, ?)',(title,subject_id,teacher_id,questions_json))
-	quiz_id=cursor.lastrowid
-	conn.commit()
-	conn.close()
-	return quiz_id
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		questions_json_str=json.dumps(questions)
+		try:
+			cursor.execute('INSERT INTO quizzes (title, subject_id, teacher_id, questions, difficulty) VALUES (?, ?, ?, ?, ?)',(title,subject_id,teacher_id,questions_json_str,difficulty))
+		except sqlite3.OperationalError:
+			cursor.execute('INSERT INTO quizzes (title, subject_id, teacher_id, questions) VALUES (?, ?, ?, ?)',(title,subject_id,teacher_id,questions_json_str))
+		quiz_id=cursor.lastrowid
+		conn.commit()
+		conn.close()
+		return quiz_id
+	except Exception:
+		return None
 
 def assign_quiz_to_students(quiz_id,student_ids):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	for student_id in student_ids:cursor.execute('INSERT OR IGNORE INTO quiz_assignments (quiz_id, student_id) VALUES (?, ?)',(quiz_id,student_id))
-	conn.commit()
-	conn.close()
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		for student_id in student_ids:
+			cursor.execute('INSERT OR IGNORE INTO quiz_assignments (quiz_id, student_id) VALUES (?, ?)',(quiz_id,student_id))
+		conn.commit()
+		conn.close()
+	except Exception:
+		pass
+
+def _parse_quiz_row(row):
+	quiz_dict={'id':row[0],'title':row[1],'subject_id':row[2],'teacher_id':row[3],'questions':json.loads(row[4]),'created_at':row[5]}
+	if len(row)>6 and row[6]:
+		quiz_dict['difficulty']=row[6]
+	else:
+		quiz_dict['difficulty']='medium'
+	return quiz_dict
 
 def get_teacher_quizzes(teacher_id):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('SELECT * FROM quizzes WHERE teacher_id = ? ORDER BY created_at DESC',(teacher_id,))
-	quizzes=[]
-	for row in cursor.fetchall():
-		quiz={'id':row[0],'title':row[1],'subject_id':row[2],'teacher_id':row[3],'questions':json.loads(row[4]),'created_at':row[5]}
-		if len(row)>6:
-			quiz['difficulty']=row[6] if row[6] else 'medium'
-		else:
-			quiz['difficulty']='medium'
-		quizzes.append(quiz)
-	conn.close()
-	return quizzes
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('SELECT * FROM quizzes WHERE teacher_id = ? ORDER BY created_at DESC',(teacher_id,))
+		rows=cursor.fetchall()
+		conn.close()
+		quizzes=[]
+		for r in rows:
+			quizzes.append(_parse_quiz_row(r))
+		return quizzes
+	except Exception:
+		return []
 
 def get_student_quizzes(student_id):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('''SELECT q.* FROM quizzes q JOIN quiz_assignments qa ON q.id = qa.quiz_id WHERE qa.student_id = ? ORDER BY q.created_at DESC''',(student_id,))
-	quizzes=[]
-	for row in cursor.fetchall():
-		quiz={'id':row[0],'title':row[1],'subject_id':row[2],'teacher_id':row[3],'questions':json.loads(row[4]),'created_at':row[5]}
-		if len(row)>6:
-			quiz['difficulty']=row[6] if row[6] else 'medium'
-		else:
-			quiz['difficulty']='medium'
-		quizzes.append(quiz)
-	conn.close()
-	return quizzes
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('''SELECT q.* FROM quizzes q JOIN quiz_assignments qa ON q.id = qa.quiz_id WHERE qa.student_id = ? ORDER BY q.created_at DESC''',(student_id,))
+		rows=cursor.fetchall()
+		conn.close()
+		quizzes=[]
+		for r in rows:
+			quizzes.append(_parse_quiz_row(r))
+		return quizzes
+	except Exception:
+		return []
 
 def get_quiz_by_id(quiz_id):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('SELECT * FROM quizzes WHERE id = ?',(quiz_id,))
-	row=cursor.fetchone()
-	conn.close()
-	if row:
-		quiz={'id':row[0],'title':row[1],'subject_id':row[2],'teacher_id':row[3],'questions':json.loads(row[4]),'created_at':row[5]}
-		if len(row)>6:
-			quiz['difficulty']=row[6] if row[6] else 'medium'
-		else:
-			quiz['difficulty']='medium'
-		return quiz
-	return None
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('SELECT * FROM quizzes WHERE id = ?',(quiz_id,))
+		quiz_row=cursor.fetchone()
+		conn.close()
+		if quiz_row:
+			return _parse_quiz_row(quiz_row)
+		return None
+	except Exception:
+		return None
 
 def update_quiz_score(quiz_id,user_id,score):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('UPDATE quiz_results SET score = ? WHERE quiz_id = ? AND user_id = ?',(score,quiz_id,user_id))
-	conn.commit()
-	conn.close()
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('UPDATE quiz_results SET score = ? WHERE quiz_id = ? AND user_id = ?',(score,quiz_id,user_id))
+		conn.commit()
+		conn.close()
+	except Exception:
+		pass
 
 def get_subjects_with_counts():
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('''SELECT s.id, s.name, COUNT(us.user_id) as user_count FROM subjects s LEFT JOIN user_subjects us ON s.id = us.subject_id GROUP BY s.id, s.name ORDER BY s.name''')
-	subjects=[{'id':row[0],'name':row[1],'user_count':row[2]} for row in cursor.fetchall()]
-	return subjects
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('''SELECT s.id, s.name, COUNT(us.user_id) as user_count FROM subjects s LEFT JOIN user_subjects us ON s.id = us.subject_id GROUP BY s.id, s.name ORDER BY s.name''')
+		rows=cursor.fetchall()
+		conn.close()
+		subjects=[]
+		for r in rows:
+			subjects.append({'id':r[0],'name':r[1],'user_count':r[2]})
+		return subjects
+	except Exception:
+		return []
 
 def get_non_indexed_materials():
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('SELECT * FROM materials WHERE indexed = 0 ORDER BY upload_time DESC')
-	rows=cursor.fetchall()
-	materials=[{'id':row[0],'filename':row[1],'sha':row[2],'content':row[3],'subject_id':row[4],'upload_time':row[5],'indexed':row[6] if len(row)>6 else 0} for row in rows]
-	conn.close()
-	return materials
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('SELECT * FROM materials WHERE indexed = 0 ORDER BY upload_time DESC')
+		rows=cursor.fetchall()
+		conn.close()
+		materials=[]
+		for r in rows:
+			indexed=r[6] if len(r)>6 else 0
+			materials.append({'id':r[0],'filename':r[1],'sha':r[2],'content':r[3],'subject_id':r[4],'upload_time':r[5],'indexed':indexed})
+		return materials
+	except Exception:
+		return []
 
 def update_material_indexed_status(material_id,indexed=1):
-	conn=get_db_connection()
-	cursor=conn.cursor()
-	cursor.execute('UPDATE materials SET indexed = ? WHERE id = ?',(indexed,material_id))
-	conn.commit()
-	conn.close()
-
+	try:
+		conn=get_db_connection()
+		cursor=conn.cursor()
+		cursor.execute('UPDATE materials SET indexed = ? WHERE id = ?',(indexed,material_id))
+		conn.commit()
+		conn.close()
+	except Exception:
+		pass

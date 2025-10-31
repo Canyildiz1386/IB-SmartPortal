@@ -79,29 +79,29 @@ def login():
         if password and username:
             user = verify_user(username, password)
         elif face_image:
-            users_with_faces=get_all_users_with_faces()
-            if not users_with_faces:
+            usersWithFaces=get_all_users_with_faces()
+            if not usersWithFaces:
                 flash('No users have registered face images. Please use password login.','error')
                 return render_template('login.html')
-            temp_folder=os.path.join(USER_IMAGES_FOLDER,'temp')
-            os.makedirs(temp_folder,exist_ok=True)
-            temp_image_path=os.path.join(temp_folder,'temp_login.jpg')
+            tempDir=os.path.join(USER_IMAGES_FOLDER,'temp')
+            os.makedirs(tempDir,exist_ok=True)
+            tmpImg=os.path.join(tempDir,'temp_login.jpg')
             from PIL import Image
-            image=Image.open(face_image)
-            if image.mode=='RGBA':image=image.convert('RGB')
-            image.save(temp_image_path,format='JPEG')
-            matched_user=None
-            for user_data in users_with_faces:
-                if user_data['face_image'] and os.path.exists(user_data['face_image']):
-                    if verify_face(user_data['face_image'],temp_image_path):
-                        matched_user=user_data
+            img=Image.open(face_image)
+            if img.mode=='RGBA':img=img.convert('RGB')
+            img.save(tmpImg,format='JPEG')
+            match=None
+            for u in usersWithFaces:
+                if u['face_image'] and os.path.exists(u['face_image']):
+                    if verify_face(u['face_image'],tmpImg):
+                        match=u
                         break
-            if matched_user:
-                user={'id':matched_user['id'],'username':matched_user['username'],'role':matched_user['role']}
-                mood_data=analyze_mood(temp_image_path)
-                add_mood_tracking(user['id'],mood_data['mood'],mood_data['age'],mood_data['gender'],mood_data['race'])
-                session['user_mood']=mood_data['mood']
-            if os.path.exists(temp_image_path):os.remove(temp_image_path)
+            if match:
+                user={'id':match['id'],'username':match['username'],'role':match['role']}
+                mood=analyze_mood(tmpImg)
+                add_mood_tracking(user['id'],mood['mood'],mood['age'],mood['gender'],mood['race'])
+                session['user_mood']=mood['mood']
+            if os.path.exists(tmpImg):os.remove(tmpImg)
             if not user:
                 flash('Face recognition failed. Your face does not match any registered user.','error')
         if user:
@@ -126,86 +126,86 @@ def logout():
 @teacher_required
 def upload():
     user = get_current_user()
-    rag_system = get_rag_system()
+    rag = get_rag_system()
     if request.method == 'POST':
-        last_upload = session.get('last_upload_time', 0)
-        current_time = time.time()
-        time_diff = current_time - last_upload
-        if time_diff < 120:
-            remaining_time = 120 - int(time_diff)
-            flash(f'Upload rate limit: Please wait {remaining_time} seconds before uploading again.', 'error')
+        lastUpload = session.get('last_upload_time', 0)
+        now = time.time()
+        diff = now - lastUpload
+        if diff < 120:
+            wait = 120 - int(diff)
+            flash(f'Upload rate limit: Please wait {wait} seconds before uploading again.', 'error')
             return redirect(url_for('upload'))
         
         files = request.files.getlist('files')
-        subject_id = request.form.get('subject_id')
+        subjId = request.form.get('subject_id')
         
-        if not files or all(file.filename == '' for file in files):
+        if not files or all(f.filename == '' for f in files):
             flash('No files selected.', 'error')
             return redirect(url_for('upload'))
-        if not subject_id:
+        if not subjId:
             flash('Please select a subject.', 'error')
             return redirect(url_for('upload'))
         
-        uploaded_files = []
-        for file in files:
-            if file and allowed_file(file.filename):
-                file.seek(0, os.SEEK_END)
-                file_size = file.tell()
-                file.seek(0)
-                if file_size > MAX_FILE_SIZE:
-                    flash(f'File {file.filename} too large.', 'error')
+        uploaded = []
+        for f in files:
+            if f and allowed_file(f.filename):
+                f.seek(0, os.SEEK_END)
+                size = f.tell()
+                f.seek(0)
+                if size > MAX_FILE_SIZE:
+                    flash(f'File {f.filename} too large.', 'error')
                     continue
                 
-                filename = secure_filename(file.filename)
-                unique_filename = f"{uuid.uuid4()}_{filename}"
-                file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
-                file.save(file_path)
+                fname = secure_filename(f.filename)
+                uniqName = f"{uuid.uuid4()}_{fname}"
+                path = os.path.join(UPLOAD_FOLDER, uniqName)
+                f.save(path)
                 
-                if filename.lower().endswith('.pdf'):
-                    content = rag_system.extract_pdf(file_path)
+                if fname.lower().endswith('.pdf'):
+                    txt = rag.extract_pdf(path)
                 else:
-                    content = rag_system.extract_txt(file_path)
+                    txt = rag.extract_txt(path)
                 
-                if content.strip():
-                    uploaded_files.append(file_path)
-                    add_material(filename, content, subject_id, indexed=0)
+                if txt.strip():
+                    uploaded.append(path)
+                    add_material(fname, txt, subjId, indexed=0)
                 else:
-                    os.remove(file_path)
-                    flash(f'Could not extract text from {filename}.', 'error')
+                    os.remove(path)
+                    flash(f'Could not extract text from {fname}.', 'error')
             else:
-                flash(f'Invalid file format: {file.filename}.', 'error')
+                flash(f'Invalid file format: {f.filename}.', 'error')
         
-        if uploaded_files:
+        if uploaded:
             try:
-                materials = get_materials()
-                rag_system.rebuild_from_db(materials)
-                for material in materials:
-                    if material['filename'] in [secure_filename(f.filename) for f in files if f and allowed_file(f.filename)]:
-                        update_material_indexed_status(material['id'], indexed=1)
+                mats = get_materials()
+                rag.rebuild_from_db(mats)
+                for mat in mats:
+                    if mat['filename'] in [secure_filename(f.filename) for f in files if f and allowed_file(f.filename)]:
+                        update_material_indexed_status(mat['id'], indexed=1)
                 session['last_upload_time'] = time.time()
                 session.modified = True
-                flash(f'Uploaded and indexed {len(uploaded_files)} file(s) for subject.', 'success')
+                flash(f'Uploaded and indexed {len(uploaded)} file(s) for subject.', 'success')
             except Exception as e:
                 flash(f'Error building index: {str(e)}', 'error')
         return redirect(url_for('upload'))
     
-    materials = get_materials()
-    user_subjects = get_user_subjects(user['id'])
-    return render_template('index.html', materials=materials, subjects=user_subjects)
+    mats = get_materials()
+    subs = get_user_subjects(user['id'])
+    return render_template('index.html', materials=mats, subjects=subs)
 
 @app.route('/reindex', methods=['POST'])
 @teacher_required
 def reindex_files():
     user = get_current_user()
     try:
-        rag_system = get_rag_system()
-        non_indexed_materials = get_non_indexed_materials()
-        if non_indexed_materials:
-            all_materials = get_materials()
-            rag_system.rebuild_from_db(all_materials)
-            for material in non_indexed_materials:
-                update_material_indexed_status(material['id'], indexed=1)
-            flash(f'Successfully indexed {len(non_indexed_materials)} file(s) that had indexing problems!', 'success')
+        rag = get_rag_system()
+        nonIndexed = get_non_indexed_materials()
+        if nonIndexed:
+            allMats = get_materials()
+            rag.rebuild_from_db(allMats)
+            for mat in nonIndexed:
+                update_material_indexed_status(mat['id'], indexed=1)
+            flash(f'Successfully indexed {len(nonIndexed)} file(s) that had indexing problems!', 'success')
         else:
             flash('All files are already properly indexed!', 'info')
     except Exception as e:
@@ -227,72 +227,72 @@ def chat():
     if user['role'] == 'admin':
         flash('Admins do not have access to chat.', 'error')
         return redirect(url_for('admin_dashboard'))
-    rag_system = get_rag_system()
-    if rag_system is None or not rag_system.chunks:
+    rag = get_rag_system()
+    if rag is None or not rag.chunks:
         flash('No materials indexed yet. Please ask a teacher to upload materials first.', 'warning')
         if user['role'] == 'student':
             return redirect(url_for('student_quizzes'))
         else:
             return redirect(url_for('upload'))
     if request.method=='POST':
-        question=request.form['question'].strip()
-        is_ajax=request.headers.get('X-Requested-With')=='XMLHttpRequest'
-        if question:
+        q=request.form['question'].strip()
+        ajax=request.headers.get('X-Requested-With')=='XMLHttpRequest'
+        if q:
             try:
-                user_grade=get_user_grade(user['id'])
-                answer,sources=rag_system.query(question,top_k=3,user_grade=user_grade)
-                log_qa(session['user_id'],question,answer)
+                grade=get_user_grade(user['id'])
+                ans,srcs=rag.query(q,top_k=3,user_grade=grade)
+                log_qa(session['user_id'],q,ans)
                 if 'chat_history' not in session:session['chat_history']=[]
-                session['chat_history'].append({'question':question,'answer':answer,'sources':sources})
+                session['chat_history'].append({'question':q,'answer':ans,'sources':srcs})
                 if len(session['chat_history'])>10:session['chat_history']=session['chat_history'][-10:]
                 session.modified=True
-                if is_ajax:
+                if ajax:
                     return jsonify({
                         'success':True,
-                        'question':question,
-                        'answer':answer,
-                        'sources':[{'metadata':s.get('metadata',{}),'score':s.get('score',0)} for s in sources]
+                        'question':q,
+                        'answer':ans,
+                        'sources':[{'metadata':s.get('metadata',{}),'score':s.get('score',0)} for s in srcs]
                     })
             except Exception as e:
-                if is_ajax:
+                if ajax:
                     return jsonify({'success':False,'error':str(e)})
                 flash(f'Error generating answer: {str(e)}','error')
         else:
-            if is_ajax:
+            if ajax:
                 return jsonify({'success':False,'error':'Empty question'})
-    chat_history=session.get('chat_history',[])
-    return render_template('chat.html',chat_history=chat_history)
+    history=session.get('chat_history',[])
+    return render_template('chat.html',chat_history=history)
 
 @app.route('/quiz', methods=['GET', 'POST'])
 @login_required
 def quiz():
-    rag_system = get_rag_system()
+    rag = get_rag_system()
     if request.method=='POST':
-        num_questions,description=int(request.form.get('num_questions',5)),request.form.get('description','')
+        numQ,desc=int(request.form.get('num_questions',5)),request.form.get('description','')
         try:
-            quiz_questions=rag_system.generate_quiz(num_questions,description)
-            if quiz_questions:
-                session['current_quiz']=quiz_questions
+            questions=rag.generate_quiz(numQ,desc)
+            if questions:
+                session['current_quiz']=questions
                 session.modified=True
-                return render_template('quiz.html',quiz=quiz_questions,show_quiz=True)
+                return render_template('quiz.html',quiz=questions,show_quiz=True)
             else:flash('Failed to generate quiz questions.','error')
         except Exception as e:flash(f'Error generating quiz: {str(e)}','error')
-    current_quiz=session.get('current_quiz',[])
-    if current_quiz:return render_template('quiz.html',quiz=current_quiz,show_quiz=True)
+    quizData=session.get('current_quiz',[])
+    if quizData:return render_template('quiz.html',quiz=quizData,show_quiz=True)
     return render_template('quiz.html',show_quiz=False)
 
 @app.route('/export_quiz')
 @login_required
 def export_quiz():
-    current_quiz=session.get('current_quiz',[])
-    if not current_quiz:
+    quiz_to_export=session.get('current_quiz',[])
+    if not quiz_to_export:
         flash('No quiz to export.','error')
         return redirect(url_for('quiz'))
-    csv_data=export_quiz_csv(current_quiz)
-    response=make_response(csv_data)
-    response.headers['Content-Type']='text/csv'
-    response.headers['Content-Disposition']='attachment; filename=quiz_export.csv'
-    return response
+    csv_output=export_quiz_csv(quiz_to_export)
+    http_response=make_response(csv_output)
+    http_response.headers['Content-Type']='text/csv'
+    http_response.headers['Content-Disposition']='attachment; filename=quiz_export.csv'
+    return http_response
 
 @app.route('/admin',methods=['GET','POST'])
 @admin_required
@@ -300,21 +300,21 @@ def admin():
     if request.method=='POST':
         username,password,role,subject_ids=request.form['username'],request.form['password'],request.form['role'],request.form.getlist('subject_ids')
         grade=request.form.get('grade','').strip() if role=='student' else None
-        face_image=request.files.get('face_image')
-        face_image_path=None
-        if face_image and face_image.filename:
-            user_folder=os.path.join(USER_IMAGES_FOLDER,username)
-            os.makedirs(user_folder,exist_ok=True)
-            face_image_path=os.path.join(user_folder,f"{username}_face.jpg")
-            success,msg=prepare_uploaded_image(face_image,face_image_path)
-            if not success:
+        faceImg=request.files.get('face_image')
+        imgPath=None
+        if faceImg and faceImg.filename:
+            userDir=os.path.join(USER_IMAGES_FOLDER,username)
+            os.makedirs(userDir,exist_ok=True)
+            imgPath=os.path.join(userDir,f"{username}_face.jpg")
+            ok,msg=prepare_uploaded_image(faceImg,imgPath)
+            if not ok:
                 flash(f'Face image error: {msg}','error')
                 users,subjects=get_all_users(),get_subjects()
                 return render_template('admin.html',users=users,all_subjects=subjects)
         try:
-            user_id=add_user(username,password,role,face_image_path,grade)
+            uid=add_user(username,password,role,imgPath,grade)
             if subject_ids and role in ['student','teacher']:
-                for subject_id in subject_ids:assign_user_subject(user_id,subject_id)
+                for sid in subject_ids:assign_user_subject(uid,sid)
             flash(f'User {username} created successfully!','success')
         except Exception as e:flash(f'Error creating user: {str(e)}','error')
     users,subjects=get_all_users(),get_subjects()
@@ -324,59 +324,60 @@ def admin():
 @admin_required
 def edit_user(user_id):
     if request.method == 'POST':
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        username = request.form['username']
+        db_conn = get_db_connection()
+        db_cursor = db_conn.cursor()
+        uname = request.form['username']
         role = request.form['role']
-        subject_ids = request.form.getlist('subject_ids')
-        password=request.form.get('password','').strip()
-        grade=request.form.get('grade','').strip() if role=='student' else None
-        face_image=request.files.get('face_image')
+        sids = request.form.getlist('subject_ids')
+        pwd=request.form.get('password','').strip()
+        grd=request.form.get('grade','').strip() if role=='student' else None
+        faceImg=request.files.get('face_image')
         try:
-            cursor.execute('UPDATE users SET username = ?, role = ?, grade = ? WHERE id = ?',(username,role,grade,user_id))
-            if password:
-                password_hash=hashlib.sha256(password.encode()).hexdigest()
-                cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?',(password_hash,user_id))
-            if face_image and face_image.filename:
-                user_folder=os.path.join(USER_IMAGES_FOLDER,username)
-                os.makedirs(user_folder,exist_ok=True)
-                face_image_path=os.path.join(user_folder,f"{username}_face.jpg")
-                success,msg=prepare_uploaded_image(face_image,face_image_path)
-                if success:
-                    cursor.execute('UPDATE users SET face_image = ? WHERE id = ?',(face_image_path,user_id))
+            db_cursor.execute('UPDATE users SET username = ?, role = ?, grade = ? WHERE id = ?',(uname,role,grd,user_id))
+            if pwd:
+                pwdHash=hashlib.sha256(pwd.encode()).hexdigest()
+                db_cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?',(pwdHash,user_id))
+            if faceImg and faceImg.filename:
+                imgDir=os.path.join(USER_IMAGES_FOLDER,uname)
+                os.makedirs(imgDir,exist_ok=True)
+                picPath=os.path.join(imgDir,f"{uname}_face.jpg")
+                ok,msg=prepare_uploaded_image(faceImg,picPath)
+                if ok:
+                    db_cursor.execute('UPDATE users SET face_image = ? WHERE id = ?',(picPath,user_id))
                 else:
                     flash(f'Face image error: {msg}','error')
-            cursor.execute('DELETE FROM user_subjects WHERE user_id = ?',(user_id,))
-            if subject_ids and role in ['student','teacher']:
-                for subject_id in subject_ids:
-                    cursor.execute('INSERT OR IGNORE INTO user_subjects (user_id, subject_id) VALUES (?, ?)',(user_id,subject_id))
-            conn.commit()
-            conn.close()
-            flash(f'User {username} updated successfully!','success')
+            db_cursor.execute('DELETE FROM user_subjects WHERE user_id = ?',(user_id,))
+            if sids and role in ['student','teacher']:
+                for sid in sids:
+                    db_cursor.execute('INSERT OR IGNORE INTO user_subjects (user_id, subject_id) VALUES (?, ?)',(user_id,sid))
+            db_conn.commit()
+            db_conn.close()
+            flash(f'User {uname} updated successfully!','success')
             return redirect(url_for('admin'))
         except Exception as e:
-            conn.rollback()
-            conn.close()
+            db_conn.rollback()
+            db_conn.close()
             flash(f'Error updating user: {str(e)}','error')
             return redirect(url_for('edit_user',user_id=user_id))
-    conn=get_db_connection()
-    cursor=conn.cursor()
-    cursor.execute('SELECT id, username, role, grade FROM users WHERE id = ?',(user_id,))
-    user=cursor.fetchone()
-    if not user:
-        conn.close()
+    db_conn=get_db_connection()
+    db_cursor=db_conn.cursor()
+    db_cursor.execute('SELECT id, username, role, grade FROM users WHERE id = ?',(user_id,))
+    user_row=db_cursor.fetchone()
+    if not user_row:
+        db_conn.close()
         flash('User not found.','error')
         return redirect(url_for('admin'))
-    user_dict={'id':user[0],'username':user[1],'role':user[2],'grade':user[3]}
-    conn.close()
-    user_subjects=get_user_subjects(user_id)
-    all_subjects=get_subjects()
-    return render_template('edit_user.html',user=user_dict,user_subjects=user_subjects,all_subjects=all_subjects)
+    user_dict={'id':user_row[0],'username':user_row[1],'role':user_row[2],'grade':user_row[3]}
+    db_conn.close()
+    subs=get_user_subjects(user_id)
+    allSubs=get_subjects()
+    return render_template('edit_user.html',user=user_dict,user_subjects=subs,all_subjects=allSubs)
 
 @app.route('/delete_user/<int:user_id>')
 @admin_required
 def delete_user_route(user_id):
-    if user_id==session['user_id']:flash('Cannot delete your own account.','error')
+    if user_id==session['user_id']:
+        flash('Cannot delete your own account.','error')
     else:
         delete_user(user_id)
         flash('User deleted successfully.','success')
@@ -451,20 +452,20 @@ def assign_subject():
 @teacher_required
 def create_quiz_route():
     if request.method=='POST':
-        title,subject_id,description,num_questions,difficulty=request.form['title'],request.form['subject_id'],request.form['description'],int(request.form.get('num_questions',5)),request.form.get('difficulty','medium')
+        title,sid,desc,numQ,diff=request.form['title'],request.form['subject_id'],request.form['description'],int(request.form.get('num_questions',5)),request.form.get('difficulty','medium')
         try:
-            rag_system = get_rag_system()
-            quiz_questions = rag_system.generate_quiz(num_questions, description, subject_id, difficulty)
-            if quiz_questions:
-                quiz_id = create_quiz(title, subject_id, session['user_id'], quiz_questions, difficulty)
+            rag = get_rag_system()
+            qs = rag.generate_quiz(numQ, desc, sid, diff)
+            if qs:
+                qid = create_quiz(title, sid, session['user_id'], qs, diff)
                 flash(f'Quiz "{title}" created successfully!', 'success')
-                return redirect(url_for('quiz_editor', quiz_id=quiz_id))
+                return redirect(url_for('quiz_editor', quiz_id=qid))
             else:
                 flash('Failed to generate quiz questions.', 'error')
         except Exception as e:
             flash(f'Error creating quiz: {str(e)}', 'error')
-    teacher_subjects = get_user_subjects(session['user_id'])
-    return render_template('create_quiz.html', subjects=teacher_subjects)
+    teacherSubs = get_user_subjects(session['user_id'])
+    return render_template('create_quiz.html', subjects=teacherSubs)
 
 @app.route('/assign_quiz/<int:quiz_id>',methods=['GET','POST'])
 @teacher_required
@@ -474,26 +475,28 @@ def assign_quiz(quiz_id):
         flash('Quiz not found.','error')
         return redirect(url_for('my_quizzes'))
     if request.method=='POST':
-        student_ids=request.form.getlist('student_ids')
-        if student_ids:
-            assign_quiz_to_students(quiz_id,student_ids)
+        sids=request.form.getlist('student_ids')
+        if sids:
+            assign_quiz_to_students(quiz_id,sids)
             flash('Quiz assigned successfully!','success')
             return redirect(url_for('my_quizzes'))
         else:flash('Please select at least one student.','error')
-    conn=get_db_connection()
-    cursor=conn.cursor()
-    cursor.execute('SELECT student_id FROM quiz_assignments WHERE quiz_id = ?',(quiz_id,))
-    assigned_student_ids=set(row[0] for row in cursor.fetchall())
+    db_conn=get_db_connection()
+    db_cursor=db_conn.cursor()
+    db_cursor.execute('SELECT student_id FROM quiz_assignments WHERE quiz_id = ?',(quiz_id,))
+    assigned_student_ids=set(row[0] for row in db_cursor.fetchall())
     quiz_subject_id=quiz.get('subject_id')
     if quiz_subject_id:
-        cursor.execute('''SELECT DISTINCT u.id, u.username FROM users u 
+        db_cursor.execute('''SELECT DISTINCT u.id, u.username FROM users u 
             JOIN user_subjects us ON u.id = us.user_id 
             WHERE u.role = "student" AND us.subject_id = ?''',(quiz_subject_id,))
     else:
-        cursor.execute('SELECT id, username FROM users WHERE role = "student"')
-    all_students=[{'id':row[0],'username':row[1],'assigned':row[0] in assigned_student_ids} for row in cursor.fetchall()]
-    conn.close()
-    return render_template('assign_quiz.html',quiz=quiz,students=all_students)
+        db_cursor.execute('SELECT id, username FROM users WHERE role = "student"')
+    student_list=[]
+    for student_row in db_cursor.fetchall():
+        student_list.append({'id':student_row[0],'username':student_row[1],'assigned':student_row[0] in assigned_student_ids})
+    db_conn.close()
+    return render_template('assign_quiz.html',quiz=quiz,students=student_list)
 
 @app.route('/my_quizzes')
 @teacher_required
@@ -508,23 +511,23 @@ def student_quizzes():
     if user['role']!='student':
         flash('Access denied.','error')
         return redirect(url_for('index'))
-    quizzes=get_student_quizzes(user['id'])
-    conn=get_db_connection()
-    cursor=conn.cursor()
-    for quiz in quizzes:
-        cursor.execute('SELECT id, score, time FROM quiz_results WHERE user_id = ? AND quiz_id = ? ORDER BY time DESC LIMIT 1',(user['id'],quiz['id']))
-        result=cursor.fetchone()
-        if result:
-            quiz['completed_time']=result[2]
-            quiz['score']=round(result[1],1)
-            quiz['result_id']=result[0]
+    student_quiz_list=get_student_quizzes(user['id'])
+    db_conn=get_db_connection()
+    db_cursor=db_conn.cursor()
+    for quiz_item in student_quiz_list:
+        db_cursor.execute('SELECT id, score, time FROM quiz_results WHERE user_id = ? AND quiz_id = ? ORDER BY time DESC LIMIT 1',(user['id'],quiz_item['id']))
+        result_row=db_cursor.fetchone()
+        if result_row:
+            quiz_item['completed_time']=result_row[2]
+            quiz_item['score']=round(result_row[1],1)
+            quiz_item['result_id']=result_row[0]
         else:
-            quiz['completed_time']=None
-            quiz['score']=None
-            quiz['result_id']=None
-    conn.close()
+            quiz_item['completed_time']=None
+            quiz_item['score']=None
+            quiz_item['result_id']=None
+    db_conn.close()
     
-    return render_template('student_quizzes.html',quizzes=quizzes)
+    return render_template('student_quizzes.html',quizzes=student_quiz_list)
 
 @app.route('/take_quiz/<int:quiz_id>',methods=['GET','POST'])
 @login_required
@@ -537,86 +540,87 @@ def take_quiz(quiz_id):
     if not quiz:
         flash('Quiz not found.','error')
         return redirect(url_for('student_quizzes'))
-    conn=get_db_connection()
-    cursor=conn.cursor()
-    cursor.execute('SELECT id, score, time, answers FROM quiz_results WHERE user_id = ? AND quiz_id = ? ORDER BY time DESC LIMIT 1',(user['id'],quiz_id))
-    existing_result=cursor.fetchone()
-    conn.close()
-    if existing_result:
+    db_conn=get_db_connection()
+    db_cursor=db_conn.cursor()
+    db_cursor.execute('SELECT id, score, time, answers FROM quiz_results WHERE user_id = ? AND quiz_id = ? ORDER BY time DESC LIMIT 1',(user['id'],quiz_id))
+    previous_result=db_cursor.fetchone()
+    db_conn.close()
+    if previous_result:
         flash('You have already completed this quiz. Viewing your results.','info')
-        return redirect(url_for('view_quiz_result',result_id=existing_result[0]))
+        return redirect(url_for('view_quiz_result',result_id=previous_result[0]))
     
     try:
-        questions=json.loads(quiz['questions']) if isinstance(quiz['questions'],str) else quiz['questions']
+        qs=json.loads(quiz['questions']) if isinstance(quiz['questions'],str) else quiz['questions']
     except (TypeError,json.JSONDecodeError):
-        questions=quiz['questions']
+        qs=quiz['questions']
     if request.method=='POST':
-        answers,correct_count=[],0
-        for i,question in enumerate(questions):
-            answer_key=f'q{i}'
-            user_answer=request.form.get(answer_key,'').strip().upper()
-            correct_answer=question['correct'].strip().upper()
-            if user_answer==correct_answer:correct_count+=1
-            answers.append({'question':question['question'],'user_answer':user_answer,'correct_answer':correct_answer,'is_correct':user_answer==correct_answer})
-        score=(correct_count/len(questions))*100
-        result_id=log_quiz_result(user['id'],score,answers,quiz_id)
+        ans,correct=[],0
+        for i,q in enumerate(qs):
+            key=f'q{i}'
+            uAns=request.form.get(key,'').strip().upper()
+            corrAns=q['correct'].strip().upper()
+            if uAns==corrAns:
+                correct+=1
+            ans.append({'question':q['question'],'user_answer':uAns,'correct_answer':corrAns,'is_correct':uAns==corrAns})
+        score=(correct/len(qs))*100
+        rid=log_quiz_result(user['id'],score,ans,quiz_id)
         update_quiz_score(quiz_id,user['id'],score)
-        return redirect(url_for('view_quiz_result',result_id=result_id))
-    return render_template('take_quiz.html',quiz=quiz,questions=questions)
+        return redirect(url_for('view_quiz_result',result_id=rid))
+    return render_template('take_quiz.html',quiz=quiz,questions=qs)
 
 @app.route('/view_quiz_result/<int:result_id>')
 @login_required
 def view_quiz_result(result_id):
     user = get_current_user()
-    result_data = get_quiz_result(result_id, user['id'])
-    if not result_data:
+    quiz_result_info = get_quiz_result(result_id, user['id'])
+    if not quiz_result_info:
         flash('Result not found.', 'error')
         return redirect(url_for('student_quizzes'))
-    return render_template('quiz_results.html', **result_data)
+    return render_template('quiz_results.html', **quiz_result_info)
 
 @app.route('/explain_question',methods=['POST'])
 @login_required
 def explain_question():
-    data=request.json
-    question=data.get('question','')
-    options=data.get('options',[])
-    correct_answer=data.get('correct_answer','')
-    user_answer=data.get('user_answer','')
+    request_data=request.json
+    question_text=request_data.get('question','')
+    option_list=request_data.get('options',[])
+    correct_ans=request_data.get('correct_answer','')
+    student_ans=request_data.get('user_answer','')
     
-    if not question:
+    if not question_text:
         return jsonify({'success':False,'error':'Question is required'})
     
     try:
-        rag_system = get_rag_system()
-        options_text='\n'.join([f"{chr(65+i)}) {opt}" for i,opt in enumerate(options)])
-        prompt=f"""Explain this quiz question and why the correct answer is right:
+        rag = get_rag_system()
+        options_text='\n'.join([f"{chr(65+i)}) {opt}" for i,opt in enumerate(option_list)])
+        explanation_prompt=f"""Explain this quiz question and why the correct answer is right:
 
-Question: {question}
+Question: {question_text}
 
 Options:
 {options_text}
 
-Correct Answer: {correct_answer}
-{'Student answered: ' + user_answer if user_answer else ''}
+Correct Answer: {correct_ans}
+{'Student answered: ' + student_ans if student_ans else ''}
 
 Please provide:
 1. A clear explanation of what the question is asking
-2. Why the correct answer ({correct_answer}) is correct
+2. Why the correct answer ({correct_ans}) is correct
 3. Why the other options are incorrect (if applicable)
 4. Any key concepts the student should understand
 
 Keep your explanation concise but informative."""
 
-        rag_system.rate_limit()
-        response=rag_system.client.chat(
-            message=prompt,
+        rag.rate_limit()
+        api_response=rag.client.chat(
+            message=explanation_prompt,
             model='command-a-03-2025',
             preamble="You are a helpful educational assistant. Provide clear, concise explanations that help students understand quiz questions and answers.",
             chat_history=[]
         )
         
-        explanation=response.text.strip()
-        return jsonify({'success':True,'explanation':explanation})
+        explanation_text=api_response.text.strip()
+        return jsonify({'success':True,'explanation':explanation_text})
     except Exception as e:
         return jsonify({'success':False,'error':str(e)})
 
@@ -624,17 +628,17 @@ Keep your explanation concise but informative."""
 @admin_required
 def admin_dashboard():
     user=get_current_user()
-    stats,recent_activities=get_admin_stats(),get_recent_activities()
-    user_distribution,performance_data,subject_activity,time_series_data,score_distribution=get_user_distribution(),get_performance_data(),get_subject_activity(),get_time_series_data(),get_score_distribution()
-    return render_template('admin_dashboard.html',user=user,stats=stats,recent_activities=recent_activities,user_distribution=user_distribution,performance_data=performance_data,subject_activity=subject_activity,time_series_data=time_series_data,score_distribution=score_distribution)
+    stats,recent=get_admin_stats(),get_recent_activities()
+    userDist,perfData,subjAct,tsData,scoreDist=get_user_distribution(),get_performance_data(),get_subject_activity(),get_time_series_data(),get_score_distribution()
+    return render_template('admin_dashboard.html',user=user,stats=stats,recent_activities=recent,user_distribution=userDist,performance_data=perfData,subject_activity=subjAct,time_series_data=tsData,score_distribution=scoreDist)
 
 @app.route('/teacher_dashboard')
 @teacher_required
 def teacher_dashboard():
     user=get_current_user()
-    stats,recent_activities=get_teacher_stats(user['id']),get_teacher_recent_activities(user['id'])
-    user_distribution,performance_data,subject_activity,time_series_data,score_distribution=get_user_distribution(),get_performance_data(),get_subject_activity(),get_time_series_data(),get_score_distribution()
-    return render_template('teacher_dashboard.html',user=user,stats=stats,recent_activities=recent_activities,user_distribution=user_distribution,performance_data=performance_data,subject_activity=subject_activity,time_series_data=time_series_data,score_distribution=score_distribution)
+    stats,recent=get_teacher_stats(user['id']),get_teacher_recent_activities(user['id'])
+    userDist,perfData,subjAct,tsData,scoreDist=get_user_distribution(),get_performance_data(),get_subject_activity(),get_time_series_data(),get_score_distribution()
+    return render_template('teacher_dashboard.html',user=user,stats=stats,recent_activities=recent,user_distribution=userDist,performance_data=perfData,subject_activity=subjAct,time_series_data=tsData,score_distribution=scoreDist)
 
 @app.route('/user_images/<path:filename>')
 @login_required
@@ -645,45 +649,45 @@ def serve_user_image(filename):
 @login_required
 def profile():
     user=get_current_user()
-    user_subjects=[] if user['role']=='admin' else get_user_subjects(user['id'])
-    face_image_path = get_user_face_image(user['id'])
-    user['face_image'] = face_image_path
+    subs=[] if user['role']=='admin' else get_user_subjects(user['id'])
+    imgPath = get_user_face_image(user['id'])
+    user['face_image'] = imgPath
     if request.method == 'POST':
-        face_image = request.files.get('face_image')
-        if face_image and face_image.filename:
-            username = user['username']
-            user_folder = os.path.join(USER_IMAGES_FOLDER, username)
-            os.makedirs(user_folder, exist_ok=True)
-            face_image_path = os.path.join(user_folder, f"{username}_face.jpg")
-            success, msg = prepare_uploaded_image(face_image, face_image_path)
-            if success:
-                update_user_face_image(user['id'], face_image_path)
+        faceImg = request.files.get('face_image')
+        if faceImg and faceImg.filename:
+            uname = user['username']
+            imgDir = os.path.join(USER_IMAGES_FOLDER, uname)
+            os.makedirs(imgDir, exist_ok=True)
+            picPath = os.path.join(imgDir, f"{uname}_face.jpg")
+            ok, msg = prepare_uploaded_image(faceImg, picPath)
+            if ok:
+                update_user_face_image(user['id'], picPath)
                 flash('Profile image updated successfully!', 'success')
             else:
                 flash(f'Image upload error: {msg}', 'error')
-        elif not face_image_path:
+        elif not imgPath:
             flash('Please select an image file.', 'error')
         return redirect(url_for('profile'))
     
-    return render_template('profile.html',user=user,user_subjects=user_subjects)
+    return render_template('profile.html',user=user,user_subjects=subs)
 
 @app.route('/change_password',methods=['POST'])
 @login_required
 def change_password():
-    current_password,new_password,confirm_password=request.form['current_password'],request.form['new_password'],request.form['confirm_password']
+    currPwd,newPwd,confirmPwd=request.form['current_password'],request.form['new_password'],request.form['confirm_password']
     user=get_current_user()
-    if not verify_user(user['username'],current_password):
+    if not verify_user(user['username'],currPwd):
         flash('Current password is incorrect.','error')
         return redirect(url_for('profile'))
-    if new_password!=confirm_password:
+    if newPwd!=confirmPwd:
         flash('New passwords do not match.','error')
         return redirect(url_for('profile'))
-    if len(new_password)<6:
+    if len(newPwd)<6:
         flash('Password must be at least 6 characters long.','error')
         return redirect(url_for('profile'))
     conn=get_db_connection()
     cursor=conn.cursor()
-    cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?',(hashlib.sha256(new_password.encode()).hexdigest(),user['id']))
+    cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?',(hashlib.sha256(newPwd.encode()).hexdigest(),user['id']))
     conn.commit()
     conn.close()
     flash('Password changed successfully!','success')
@@ -754,10 +758,10 @@ def quiz_editor(quiz_id):
         flash('Quiz not found.','error')
         return redirect(url_for('my_quizzes'))
     try:
-        questions=json.loads(quiz['questions']) if isinstance(quiz['questions'],str) else quiz['questions']
+        qs=json.loads(quiz['questions']) if isinstance(quiz['questions'],str) else quiz['questions']
     except (TypeError,json.JSONDecodeError):
-        questions=quiz['questions']
-    return render_template('quiz_editor.html',quiz=quiz,questions=questions)
+        qs=quiz['questions']
+    return render_template('quiz_editor.html',quiz=quiz,questions=qs)
 
 @app.route('/update_quiz_questions/<int:quiz_id>',methods=['POST'])
 @teacher_required
@@ -766,10 +770,10 @@ def update_quiz_questions(quiz_id):
     if not quiz or quiz['teacher_id']!=session['user_id']:
         return jsonify({'success':False,'error':'Quiz not found'})
     try:
-        questions=request.json.get('questions',[])
+        qs=request.json.get('questions',[])
         conn=get_db_connection()
         cursor=conn.cursor()
-        cursor.execute('UPDATE quizzes SET questions = ? WHERE id = ?',(json.dumps(questions),quiz_id))
+        cursor.execute('UPDATE quizzes SET questions = ? WHERE id = ?',(json.dumps(qs),quiz_id))
         conn.commit()
         conn.close()
         return jsonify({'success':True})
@@ -784,12 +788,12 @@ def regenerate_quiz(quiz_id):
         flash('Quiz not found.','error')
         return redirect(url_for('my_quizzes'))
     try:
-        rag_system = get_rag_system()
-        quiz_questions = rag_system.generate_quiz(5, quiz['description'], quiz['subject_id'])
-        if quiz_questions:
+        rag = get_rag_system()
+        qs = rag.generate_quiz(5, quiz['description'], quiz['subject_id'])
+        if qs:
             conn=get_db_connection()
             cursor=conn.cursor()
-            cursor.execute('UPDATE quizzes SET questions = ? WHERE id = ?',(json.dumps(quiz_questions),quiz_id))
+            cursor.execute('UPDATE quizzes SET questions = ? WHERE id = ?',(json.dumps(qs),quiz_id))
             conn.commit()
             conn.close()
             flash('Quiz regenerated successfully!','success')
@@ -805,8 +809,8 @@ def notes():
         flash('Admins do not have access to notes.', 'error')
         return redirect(url_for('admin_dashboard'))
     notes = get_user_notes(user['id'])
-    user_subjects = get_user_subjects(user['id'])
-    return render_template('notes.html', notes=notes, subjects=user_subjects)
+    subs = get_user_subjects(user['id'])
+    return render_template('notes.html', notes=notes, subjects=subs)
 
 @app.route('/create_note', methods=['POST'])
 @login_required
@@ -816,11 +820,11 @@ def create_note_route():
         return jsonify({'success': False, 'error': 'Admins do not have access to notes'})
     title = request.json.get('title', '')
     content = request.json.get('content', '')
-    subject_id = request.json.get('subject_id')
+    sid = request.json.get('subject_id')
     if not title or not content:
         return jsonify({'success': False, 'error': 'Title and content are required'})
     try:
-        create_note(user['id'], title, content, subject_id)
+        create_note(user['id'], title, content, sid)
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -833,11 +837,11 @@ def update_note_route(note_id):
         return jsonify({'success': False, 'error': 'Admins do not have access to notes'})
     title = request.json.get('title', '')
     content = request.json.get('content', '')
-    subject_id = request.json.get('subject_id')
+    sid = request.json.get('subject_id')
     if not title or not content:
         return jsonify({'success': False, 'error': 'Title and content are required'})
     try:
-        if update_note(note_id, user['id'], title, content, subject_id):
+        if update_note(note_id, user['id'], title, content, sid):
             return jsonify({'success': True})
         return jsonify({'success': False, 'error': 'Note not found'})
     except Exception as e:
@@ -872,26 +876,26 @@ def delete_note_route(note_id):
 @login_required
 def mood_map():
     user=get_current_user()
-    mood_history=get_user_mood_history(user['id'],limit=30)
+    history=get_user_mood_history(user['id'],limit=30)
     from datetime import date,datetime
     import calendar
     now=datetime.now()
     year,month=now.year,now.month
-    moods={d['date']:d['mood'] for d in mood_history}
+    moods={d['date']:d['mood'] for d in history}
     cal=calendar.monthcalendar(year,month)
-    mood_days=[]
+    days=[]
     for week in cal:
-        week_moods=[]
+        weekMoods=[]
         for day in week:
             if day==0:
-                week_moods.append("")
+                weekMoods.append("")
             else:
                 dstr=f"{year}-{month:02d}-{day:02d}"
-                mood=moods.get(dstr)
-                week_moods.append(mood_emoji(mood) if mood else "")
-        mood_days.append(week_moods)
-    current_mood=get_user_mood_today(user['id'])
-    return render_template('mood_map.html',calendar=mood_days,year=year,month=month,current_mood=current_mood,mood_history=mood_history)
+                m=moods.get(dstr)
+                weekMoods.append(mood_emoji(m) if m else "")
+        days.append(weekMoods)
+    currMood=get_user_mood_today(user['id'])
+    return render_template('mood_map.html',calendar=days,year=year,month=month,current_mood=currMood,mood_history=history)
 
 @app.route('/admin/mood_tracking')
 @admin_required
@@ -911,9 +915,9 @@ def teacher_mood_tracking():
 @login_required
 def study_together():
     user = get_current_user()
-    user_subjects = get_user_subjects(user['id']) if user['role'] in ['student', 'teacher'] else []
+    subs = get_user_subjects(user['id']) if user['role'] in ['student', 'teacher'] else []
     sessions = get_study_sessions()
-    return render_template('study_together.html', sessions=sessions, user_subjects=user_subjects, user=user)
+    return render_template('study_together.html', sessions=sessions, user_subjects=subs, user=user)
 
 @app.route('/create_session', methods=['GET', 'POST'])
 @login_required
@@ -921,72 +925,72 @@ def create_session():
     if request.method == 'POST':
         user = get_current_user()
         title = request.form['title']
-        subject_id = request.form.get('subject_id')
-        description = request.form.get('description', '')
-        max_participants = int(request.form.get('max_participants', 10))
+        sid = request.form.get('subject_id')
+        desc = request.form.get('description', '')
+        maxP = int(request.form.get('max_participants', 10))
         try:
-            session_id = create_study_session(user['id'], title, subject_id, description, max_participants)
+            sessId = create_study_session(user['id'], title, sid, desc, maxP)
             flash('Study session created successfully!', 'success')
-            return redirect(url_for('study_session', session_id=session_id))
+            return redirect(url_for('study_session', session_id=sessId))
         except Exception as e:
             flash(f'Error creating session: {str(e)}', 'error')
-    user_subjects = get_user_subjects(session['user_id']) if session.get('role') in ['student', 'teacher'] else []
-    subjects = get_subjects()
-    return render_template('create_session.html', subjects=subjects, user_subjects=user_subjects)
+    subs = get_user_subjects(session['user_id']) if session.get('role') in ['student', 'teacher'] else []
+    allSubs = get_subjects()
+    return render_template('create_session.html', subjects=allSubs, user_subjects=subs)
 
 @app.route('/study_session/<int:session_id>')
 @login_required
 def study_session(session_id):
     user=get_current_user()
-    conn=get_db_connection()
-    cursor=conn.cursor()
-    cursor.execute('''SELECT s.*, u.username as host_name, sub.name as subject_name
+    db_conn=get_db_connection()
+    db_cursor=db_conn.cursor()
+    db_cursor.execute('''SELECT s.*, u.username as host_name, sub.name as subject_name
         FROM study_sessions s
         JOIN users u ON s.host_id = u.id
         LEFT JOIN subjects sub ON s.subject_id = sub.id
         WHERE s.id = ? AND s.is_active = 1''',(session_id,))
-    result=cursor.fetchone()
-    conn.close()
-    if not result:
+    session_row=db_cursor.fetchone()
+    db_conn.close()
+    if not session_row:
         flash('Session not found or inactive.','error')
         return redirect(url_for('study_together'))
-    session_data={
-        'id':result[0],'host_id':result[1],'title':result[2],'subject_id':result[3],
-        'description':result[4],'max_participants':result[5],'created_at':result[6],
-        'is_active':result[7],'host_name':result[8],'subject_name':result[9]
+    session_info={
+        'id':session_row[0],'host_id':session_row[1],'title':session_row[2],'subject_id':session_row[3],
+        'description':session_row[4],'max_participants':session_row[5],'created_at':session_row[6],
+        'is_active':session_row[7],'host_name':session_row[8],'subject_name':session_row[9]
     }
-    participants=get_session_participants(session_id)
-    messages=get_session_messages(session_id)
+    participant_list=get_session_participants(session_id)
+    message_list=get_session_messages(session_id)
     join_session(session_id,user['id'])
-    return render_template('study_session.html',session=session_data,participants=participants,messages=messages,user=user)
+    return render_template('study_session.html',session=session_info,participants=participant_list,messages=message_list,user=user)
 
 @socketio.on('join_session')
-def handle_join_session(data):
-    handle_join_session_socket(data, socketio)
+def handle_join_session(socket_data):
+    handle_join_session_socket(socket_data, socketio)
 
 @socketio.on('leave_session')
-def handle_leave_session(data):
-    handle_leave_session_socket(data, socketio)
+def handle_leave_session(socket_data):
+    handle_leave_session_socket(socket_data, socketio)
 
 @socketio.on('send_message')
-def handle_message(data):
-    handle_message_socket(data, socketio)
+def handle_message(socket_data):
+    handle_message_socket(socket_data, socketio)
 
 @socketio.on('offer')
-def handle_offer(data):
-    handle_offer_socket(data, socketio)
+def handle_offer(socket_data):
+    handle_offer_socket(socket_data, socketio)
 
 @socketio.on('answer')
-def handle_answer(data):
-    handle_answer_socket(data, socketio)
+def handle_answer(socket_data):
+    handle_answer_socket(socket_data, socketio)
 
 @socketio.on('ice_candidate')
-def handle_ice_candidate(data):
-    handle_ice_candidate_socket(data, socketio)
+def handle_ice_candidate(socket_data):
+    handle_ice_candidate_socket(socket_data, socketio)
 
 @socketio.on('ready_for_connections')
-def handle_ready_for_connections(data):
-    handle_ready_for_connections_socket(data, socketio)
+def handle_ready_for_connections(socket_data):
+    handle_ready_for_connections_socket(socket_data, socketio)
 
 if __name__ == '__main__':
     init_db()

@@ -1,239 +1,60 @@
 {% extends "base.html" %}
-
-{% block title %}Manage Users{% endblock %}
-
+{% block title %}Admin - Smart Study{% endblock %}
 {% block content %}
-<div style="max-width: 1400px; margin: 0 auto; padding: 24px;">
-    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
-        <div style="width: 56px; height: 56px; background: #ea4335; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-            <span class="material-icons" style="font-size: 28px; color: white;">people</span>
-        </div>
-        <div>
-            <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 600; color: #202124;">Manage Users</h1>
-            <p style="margin: 0; color: #5f6368; font-size: 16px;">Add, edit, and manage system users</p>
-        </div>
-    </div>
-    
-    <div style="display: grid; grid-template-columns: 400px 1fr; gap: 24px;">
-        
-        <div style="background: white; padding: 32px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1); height: fit-content;">
-            <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #202124;">Add New User</h2>
-            
-            <form method="POST" action="{{ url_for('admin') }}" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 20px;">
-                <div>
-                    <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Username</label>
-                    <input type="text" name="username" required placeholder="Enter username" class="google-input">
+<h2>Manage Users</h2>
+<div class="card mb-4">
+    <div class="card-header">Add New User</div>
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-3">
+                    <input type="text" name="username" class="form-control mb-2" placeholder="Username" required>
                 </div>
-                
-                <div>
-                    <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Password</label>
-                    <input type="password" name="password" required placeholder="Enter password" class="google-input">
+                <div class="col-md-3">
+                    <input type="password" name="password" class="form-control mb-2" placeholder="Password" required>
                 </div>
-                
-                <div>
-                    <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">
-                        Face Image
-                        <span style="color: #5f6368; font-weight: 400; font-size: 12px;">(optional - for face recognition login)</span>
-                    </label>
-                    <input type="file" name="face_image" accept="image/*" id="faceInputAdmin" style="display: none;">
-                    <div id="cameraContainerAdmin" style="display: none; margin-top: 12px;">
-                        <video id="videoAdmin" autoplay style="width: 100%; border-radius: 12px; background: #000; max-height: 300px;"></video>
-                        <div style="display: flex; gap: 12px; margin-top: 12px;">
-                            <button type="button" id="captureBtnAdmin" style="flex: 1; padding: 12px; background: #34a853; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
-                                <span class="material-icons" style="font-size: 20px; vertical-align: middle;">camera_alt</span>
-                                Capture
-                            </button>
-                            <button type="button" id="stopCameraBtnAdmin" style="flex: 1; padding: 12px; background: #ea4335; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
-                                <span class="material-icons" style="font-size: 20px; vertical-align: middle;">stop</span>
-                                Stop
-                            </button>
-                        </div>
-                    </div>
-                    <div style="display: flex; gap: 12px; margin-top: 12px;">
-                        <button type="button" id="startCameraBtnAdmin" style="flex: 1; padding: 12px; background: #1a73e8; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
-                            <span class="material-icons" style="font-size: 20px; vertical-align: middle;">videocam</span>
-                            Use Camera
-                        </button>
-                        <button type="button" onclick="document.getElementById('faceInputAdmin').click()" style="flex: 1; padding: 12px; background: #f8f9fa; color: #202124; border: 1px solid #dadce0; border-radius: 8px; cursor: pointer; font-weight: 500;">
-                            <span class="material-icons" style="font-size: 20px; vertical-align: middle;">upload_file</span>
-                            Upload File
-                        </button>
-                    </div>
-                    <canvas id="canvasAdmin" style="display: none;"></canvas>
-                </div>
-                
-                <div>
-                    <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Role</label>
-                    <select name="role" id="roleSelect" class="google-input">
+                <div class="col-md-2">
+                    <select name="role" class="form-select mb-2" required>
                         <option value="student">Student</option>
                         <option value="teacher">Teacher</option>
                         <option value="admin">Admin</option>
                     </select>
                 </div>
-                
-                <div id="gradeSection" style="display: block;">
-                    <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Grade</label>
-                    <select name="grade" class="google-input">
-                        <option value="">Select Grade</option>
-                        <option value="9th">9th Grade</option>
-                        <option value="10th">10th Grade</option>
-                        <option value="11th">11th Grade</option>
-                        <option value="12th">12th Grade</option>
+                <div class="col-md-3">
+                    <select name="subject_ids" class="form-select mb-2" multiple>
+                        {% for subject in subjects %}
+                            <option value="{{ subject.id }}">{{ subject.name }}</option>
+                        {% endfor %}
                     </select>
-                    <p style="margin: 8px 0 0 0; color: #5f6368; font-size: 12px;">Grade level helps AI provide age-appropriate answers</p>
                 </div>
-                
-                <div id="subjectsSection" style="display: block;">
-                    <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">
-                        Assign Subjects
-                        <span style="color: #5f6368; font-weight: 400; font-size: 12px;">(select one or more)</span>
-                    </label>
-                    <div style="max-height: 200px; overflow-y: auto; border: 1px solid #dadce0; border-radius: 8px; padding: 12px; background: #f8f9fa;">
-                        {% if all_subjects %}
-                            {% for subject in all_subjects %}
-                                <label style="display: flex; align-items: center; margin-bottom: 10px; cursor: pointer; padding: 6px; border-radius: 6px; transition: background 0.2s;" onmouseover="this.style.background='#e8f0fe'" onmouseout="this.style.background='transparent'">
-                                    <input type="checkbox" name="subject_ids" value="{{ subject.id }}" style="margin-right: 10px; width: 16px; height: 16px; cursor: pointer;">
-                                    <span style="color: #202124; font-size: 14px; font-weight: 500;">{{ subject.name }}</span>
-                                </label>
-                            {% endfor %}
-                        {% else %}
-                            <p style="color: #5f6368; font-size: 13px; margin: 8px 0; font-style: italic;">No subjects available. Create subjects first in Manage Subjects.</p>
-                        {% endif %}
-                    </div>
-                    <p style="margin: 8px 0 0 0; color: #5f6368; font-size: 12px;">
-                        <span class="material-icons" style="font-size: 14px; vertical-align: middle;">info</span>
-                        You can assign multiple subjects to this user
-                    </p>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary">Add</button>
                 </div>
-                
-                <button type="submit" class="google-button" style="width: 100%; padding: 16px; font-size: 16px; background: #34a853;">
-                    <span class="material-icons" style="font-size: 20px; margin-right: 8px;">person_add</span>
-                    Add User
-                </button>
-            </form>
-        </div>
-        
-        
-        <div style="background: white; padding: 32px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #202124;">All Users ({{ users|length }})</h2>
-            
-            <div style="display: flex; flex-direction: column; gap: 12px; max-height: 600px; overflow-y: auto;">
-                {% for user in users %}
-                    <div style="background: #f8f9fa; border: 1px solid #e8eaed; border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s ease;" onmouseover="this.style.background='#e8f0fe'" onmouseout="this.style.background='#f8f9fa'">
-                        <div style="flex: 1;">
-                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                                <div style="width: 40px; height: 40px; background: {% if user.role == 'admin' %}#ea4335{% elif user.role == 'teacher' %}#1a73e8{% else %}#34a853{% endif %}; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                                    <span class="material-icons" style="font-size: 20px; color: white;">
-                                        {% if user.role == 'admin' %}admin_panel_settings{% elif user.role == 'teacher' %}school{% else %}person{% endif %}
-                                    </span>
-                                </div>
-                                <div>
-                                    <span style="color: #202124; font-weight: 600; font-size: 16px;">{{ user.username }}</span>
-                                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
-                                        <span style="background: {% if user.role == 'admin' %}#ea4335{% elif user.role == 'teacher' %}#1a73e8{% else %}#34a853{% endif %}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; text-transform: uppercase;">
-                                            {{ user.role }}
-                                        </span>
-                                        {% if user.id != session.user_id %}
-                                        <span style="color: #5f6368; font-size: 12px;">ID: {{ user.id }}</span>
-                                        {% else %}
-                                        <span style="color: #1a73e8; font-size: 12px; font-weight: 500;">(You)</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div style="display: flex; gap: 8px;">
-                            {% if user.id != session.user_id %}
-                                <a href="{{ url_for('edit_user', user_id=user.id) }}" 
-                                   class="google-button secondary" style="padding: 10px 16px; font-size: 14px; text-decoration: none;">
-                                    <span class="material-icons" style="font-size: 16px; margin-right: 4px;">edit</span>
-                                    Edit
-                                </a>
-                                <a href="{{ url_for('delete_user_route', user_id=user.id) }}" 
-                                   class="google-button" style="background: #ea4335; padding: 10px 16px; font-size: 14px; text-decoration: none;"
-                                   onclick="return confirm('Are you sure you want to delete user {{ user.username }}? This action cannot be undone.')">
-                                    <span class="material-icons" style="font-size: 16px; margin-right: 4px;">delete</span>
-                                    Delete
-                                </a>
-                            {% else %}
-                                <span style="color: #5f6368; font-size: 14px; padding: 10px 16px; font-style: italic;">Cannot edit your own account</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                {% endfor %}
             </div>
-        </div>
+        </form>
     </div>
 </div>
-
-<script>
-document.getElementById('roleSelect').addEventListener('change', function() {
-    const subjectsSection = document.getElementById('subjectsSection');
-    const gradeSection = document.getElementById('gradeSection');
-    if (this.value === 'student' || this.value === 'teacher') {
-        subjectsSection.style.display = 'block';
-        if (this.value === 'student') {
-            gradeSection.style.display = 'block';
-        } else {
-            gradeSection.style.display = 'none';
-        }
-    } else {
-        subjectsSection.style.display = 'none';
-        gradeSection.style.display = 'none';
-    }
-});
-
-let cameraStreamAdmin = null;
-
-document.getElementById('startCameraBtnAdmin').addEventListener('click', function() {
-    const video = document.getElementById('videoAdmin');
-    const cameraContainer = document.getElementById('cameraContainerAdmin');
-    const startBtn = document.getElementById('startCameraBtnAdmin');
-    
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
-        .then(function(stream) {
-            cameraStreamAdmin = stream;
-            video.srcObject = stream;
-            cameraContainer.style.display = 'block';
-            startBtn.style.display = 'none';
-        })
-        .catch(function(err) {
-            alert('Error accessing camera: ' + err.message);
-        });
-});
-
-document.getElementById('stopCameraBtnAdmin').addEventListener('click', function() {
-    if (cameraStreamAdmin) {
-        cameraStreamAdmin.getTracks().forEach(track => track.stop());
-        cameraStreamAdmin = null;
-    }
-    document.getElementById('videoAdmin').srcObject = null;
-    document.getElementById('cameraContainerAdmin').style.display = 'none';
-    document.getElementById('startCameraBtnAdmin').style.display = 'flex';
-});
-
-document.getElementById('captureBtnAdmin').addEventListener('click', function() {
-    const video = document.getElementById('videoAdmin');
-    const canvas = document.getElementById('canvasAdmin');
-    const faceInput = document.getElementById('faceInputAdmin');
-    
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
-    canvas.toBlob(function(blob) {
-        const file = new File([blob], 'face.jpg', { type: 'image/jpeg' });
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        faceInput.files = dataTransfer.files;
-        alert('Photo captured! You can now submit the form.');
-        document.getElementById('stopCameraBtnAdmin').click();
-    }, 'image/jpeg', 0.95);
-});
-
-document.getElementById('faceInputAdmin').addEventListener('change', function(e) {
-    if (e.target.files.length > 0 && cameraStreamAdmin) {
-        document.getElementById('stopCameraBtnAdmin').click();
-    }
-});
-</script>
+<h3>All Users</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for user in users %}
+        <tr>
+            <td>{{ user.id }}</td>
+            <td>{{ user.username }}</td>
+            <td>{{ user.role }}</td>
+            <td>
+                <a href="{{ url_for('delete_user_route', user_id=user.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 {% endblock %}

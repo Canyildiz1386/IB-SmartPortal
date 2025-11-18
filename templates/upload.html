@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Upload Materials - Smart Study{% endblock %}
+{% block content %}
+<h2>Upload Materials</h2>
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label class="form-label">Select Subject</label>
+                <select name="subject_id" class="form-select" required>
+                    <option value="">Choose...</option>
+                    {% for subject in subjects %}
+                        <option value="{{ subject.id }}">{{ subject.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Select Files (PDF or TXT)</label>
+                <input type="file" name="files" class="form-control" multiple accept=".pdf,.txt" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Upload</button>
+        </form>
+    </div>
+</div>
+<h3>Uploaded Materials</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Filename</th>
+            <th>Subject</th>
+            <th>Upload Time</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for material in materials %}
+        <tr>
+            <td>{{ material.filename }}</td>
+            <td>{{ material.subject_id }}</td>
+            <td>{{ material.upload_time }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+

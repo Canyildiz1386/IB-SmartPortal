@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Chat with {% if user.role == 'student' %}Teacher{% else %}Students{% endif %} - Smart Study{% endblock %}
+{% block content %}
+<h2>Chat with {% if user.role == 'student' %}Teacher{% else %}Students{% endif %}</h2>
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">{% if user.role == 'student' %}Teachers{% else %}Students{% endif %}</div>
+            <div class="list-group list-group-flush">
+                {% for teacher in teachers %}
+                <a href="#" class="list-group-item list-group-item-action" onclick="selectTeacher({{ teacher[0] }}, '{{ teacher[1] }}')">{{ teacher[1] }}</a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header" id="chatHeader">Select a {% if user.role == 'student' %}teacher{% else %}student{% endif %}</div>
+            <div class="card-body">
+                <div id="chatMessages" style="height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; background: #f9f9f9;">
+                    {% for msg in messages %}
+                    <div class="mb-2">
+                        {% if msg[1] == user.id %}
+                            <strong>You:</strong> {{ msg[3] }}<br>
+                        {% else %}
+                            <strong>{{ msg[5] }}:</strong> {{ msg[3] }}<br>
+                        {% endif %}
+                        <small class="text-muted">{{ msg[4] }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+                <form method="POST" id="chatForm">
+                    <input type="hidden" name="teacher_id" id="teacherId">
+                    <div class="input-group">
+                        <input type="text" name="message" class="form-control" placeholder="Type a message..." required>
+                        <button type="submit" class="btn btn-primary">Send</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+let selectedTeacherId = null;
+function selectTeacher(id, name) {
+    selectedTeacherId = id;
+    document.getElementById('teacherId').value = id;
+    document.getElementById('chatHeader').textContent = 'Chat with ' + name;
+    document.querySelectorAll('.list-group-item').forEach(item => item.classList.remove('active'));
+    event.target.classList.add('active');
+}
+</script>
+{% endblock %}
+

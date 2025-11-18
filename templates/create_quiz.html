@@ -1,93 +1,33 @@
 {% extends "base.html" %}
-
-{% block title %}Create Quiz{% endblock %}
-
+{% block title %}Create Quiz - Smart Study{% endblock %}
 {% block content %}
-<div style="max-width: 800px; margin: 0 auto; padding: 24px;">
-    <div style="background: white; padding: 32px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
-            <div style="width: 56px; height: 56px; background: #9c27b0; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                <span class="material-icons" style="font-size: 28px; color: white;">add_circle</span>
+<h2>Create Quiz</h2>
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label">Quiz Title</label>
+                <input type="text" name="title" class="form-control" required>
             </div>
-            <div>
-                <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 600; color: #202124;">Create New Quiz</h1>
-                <p style="margin: 0; color: #5f6368; font-size: 16px;">Generate AI-powered quiz questions from your study materials</p>
-            </div>
-        </div>
-        
-        <form method="POST" style="display: flex; flex-direction: column; gap: 20px;">
-            <div>
-                <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Quiz Title</label>
-                <input type="text" name="title" required placeholder="Enter quiz title..." class="google-input">
-            </div>
-            
-            <div>
-                <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Subject</label>
-                <select name="subject_id" required class="google-input">
-                    <option value="">Select a subject...</option>
+            <div class="mb-3">
+                <label class="form-label">Subject</label>
+                <select name="subject_id" class="form-select" required>
+                    <option value="">Choose...</option>
                     {% for subject in subjects %}
                         <option value="{{ subject.id }}">{{ subject.name }}</option>
                     {% endfor %}
                 </select>
             </div>
-            
-            <div>
-                <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Difficulty Level</label>
-                <select name="difficulty" required class="google-input">
-                    <option value="easy">🟢 Easy - Basic concepts and simple recall</option>
-                    <option value="medium" selected>🟡 Medium - Applied understanding and analysis</option>
-                    <option value="hard">🔴 Hard - Complex reasoning and critical thinking</option>
-                </select>
-                <p style="margin: 8px 0 0 0; color: #5f6368; font-size: 12px;">
-                    <span class="material-icons" style="font-size: 14px; vertical-align: middle;">info</span>
-                    The AI will adjust question complexity based on this level
-                </p>
+            <div class="mb-3">
+                <label class="form-label">Description/Topic</label>
+                <textarea name="description" class="form-control" rows="3" required></textarea>
             </div>
-            
-            <div>
-                <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Quiz Description</label>
-                <textarea name="description" required placeholder="Describe what this quiz should cover (e.g., 'Create questions about photosynthesis, cell structure, and energy flow')"
-                          class="google-input" style="height: 100px; resize: vertical;"></textarea>
+            <div class="mb-3">
+                <label class="form-label">Number of Questions</label>
+                <input type="number" name="num_questions" class="form-control" value="5" min="1" max="10" required>
             </div>
-            
-            <div>
-                <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Number of Questions</label>
-                <select name="num_questions" class="google-input">
-                    <option value="3">3 questions</option>
-                    <option value="5" selected>5 questions</option>
-                    <option value="10">10 questions</option>
-                </select>
-            </div>
-            
-            <button type="submit" id="createBtn" class="google-button" style="width: 100%; padding: 16px; font-size: 16px;">
-                <span class="material-icons" style="font-size: 20px; margin-right: 8px;">add_circle</span>
-                Create Quiz
-            </button>
+            <button type="submit" class="btn btn-primary">Create Quiz</button>
         </form>
-        
-        <div id="quizLoading" style="display: none; text-align: center; padding: 32px;">
-            <div style="display: inline-block; width: 32px; height: 32px; border: 3px solid #f3f3f3; border-top: 3px solid #1a73e8; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-            <p style="margin: 16px 0 8px 0; color: #5f6368; font-size: 16px; font-weight: 500;">Generating quiz questions...</p>
-            <p style="margin: 0; color: #5f6368; font-size: 14px;">AI is creating questions based on your materials and description</p>
-        </div>
     </div>
 </div>
-
-<style>
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-</style>
-
-<script>
-document.querySelector('form').addEventListener('submit', function() {
-    const btn = document.getElementById('createBtn');
-    const loading = document.getElementById('quizLoading');
-    
-    btn.disabled = true;
-    btn.innerHTML = '<span class="material-icons" style="font-size: 20px; margin-right: 8px;">hourglass_empty</span>Creating...';
-    loading.style.display = 'block';
-});
-</script>
 {% endblock %}

@@ -1,113 +1,20 @@
 {% extends "base.html" %}
-
-{% block title %}Profile{% endblock %}
-
+{% block title %}Profile - Smart Study{% endblock %}
 {% block content %}
-<div style="max-width: 1000px; margin: 0 auto; padding: 24px;">
-    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
-        <div style="width: 56px; height: 56px; background: #1a73e8; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-            <span class="material-icons" style="font-size: 28px; color: white;">person</span>
-        </div>
-        <div>
-            <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 600; color: #202124;">Profile Settings</h1>
-            <p style="margin: 0; color: #5f6368; font-size: 16px;">Account settings</p>
-        </div>
-    </div>
-    
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px;">
-        <div style="background: white; padding: 32px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #202124;">Change Password</h2>
-            
-            <form method="POST" action="{{ url_for('change_password') }}" style="display: flex; flex-direction: column; gap: 20px;">
-                <div>
-                    <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Current Password</label>
-                    <input type="password" name="current_password" required class="google-input" placeholder="Enter current password">
-                </div>
-                
-                <div>
-                    <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">New Password</label>
-                    <input type="password" name="new_password" required class="google-input" placeholder="Enter new password">
-                </div>
-                
-                <div>
-                    <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Confirm New Password</label>
-                    <input type="password" name="confirm_password" required class="google-input" placeholder="Confirm new password">
-                </div>
-                
-                <button type="submit" class="google-button" style="width: 100%; padding: 16px; font-size: 16px;">
-                    <span class="material-icons" style="font-size: 20px; margin-right: 8px;">lock</span>
-                    Change Password
-                </button>
-            </form>
-        </div>
-        
-        <div style="background: white; padding: 32px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #202124;">Account Information</h2>
-            
-            <div style="display: flex; flex-direction: column; gap: 20px;">
-                <div>
-                    <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Username</label>
-                    <div style="padding: 12px 16px; background: #f8f9fa; border: 1px solid #dadce0; border-radius: 8px; color: #202124; font-weight: 500;">
-                        {{ session.username }}
-                    </div>
-                </div>
-                
-                <div>
-                    <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Role</label>
-                    <div style="padding: 12px 16px; background: #f8f9fa; border: 1px solid #dadce0; border-radius: 8px; color: #202124; font-weight: 500;">
-                        {{ session.role.title() }}
-                    </div>
-                </div>
-                
-                {% if session.role in ['student', 'teacher'] %}
-                <div>
-                    <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Assigned Subjects</label>
-                    <div style="padding: 12px 16px; background: #f8f9fa; border: 1px solid #dadce0; border-radius: 8px; min-height: 48px;">
-                        {% if user_subjects %}
-                            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                                {% for subject in user_subjects %}
-                                    <span style="background: #1a73e8; color: white; padding: 4px 12px; border-radius: 16px; font-size: 12px; font-weight: 500;">{{ subject.name }}</span>
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            <span style="color: #5f6368; font-size: 14px;">No subjects assigned</span>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endif %}
+<h2>My Profile</h2>
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label">Username</label>
+                <input type="text" name="username" class="form-control" value="{{ user.username }}" required>
             </div>
-        </div>
-        
-        <div style="background: white; padding: 32px; border-radius: 12px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #202124;">Face Recognition Image</h2>
-            <p style="margin: 0 0 24px 0; color: #5f6368; font-size: 14px;">Upload your face image to enable face recognition login</p>
-            
-            <form method="POST" action="{{ url_for('profile') }}" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 20px;">
-                <div>
-                    {% if user.face_image %}
-                    <div style="margin-bottom: 16px;">
-                        <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">Current Image</label>
-                        {% set image_path = user.face_image.replace('user_images/', '').replace('user_images\\', '') %}
-                        <img src="{{ url_for('serve_user_image', filename=image_path) }}" 
-                             alt="Profile Image" 
-                             onerror="this.style.display='none'"
-                             style="width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 2px solid #e8eaed;">
-                    </div>
-                    {% endif %}
-                    
-                    <label style="display: block; font-weight: 500; margin-bottom: 8px; color: #202124; font-size: 14px;">
-                        {% if user.face_image %}Update Face Image{% else %}Upload Face Image{% endif %}
-                    </label>
-                    <input type="file" name="face_image" accept="image/*" {% if not user.face_image %}required{% endif %} class="google-input" style="padding: 12px 16px;">
-                    <p style="margin: 8px 0 0 0; color: #5f6368; font-size: 12px;">Upload a clear face image for face recognition login. Make sure your face is clearly visible and well-lit.</p>
-                </div>
-                
-                <button type="submit" class="google-button" style="width: 100%; padding: 16px; font-size: 16px;">
-                    <span class="material-icons" style="font-size: 20px; margin-right: 8px;">photo_camera</span>
-                    {% if user.face_image %}Update Face Image{% else %}Upload Face Image{% endif %}
-                </button>
-            </form>
-        </div>
+            <div class="mb-3">
+                <label class="form-label">New Password (leave blank to keep current)</label>
+                <input type="password" name="password" class="form-control">
+            </div>
+            <button type="submit" class="btn btn-primary">Update Profile</button>
+        </form>
     </div>
 </div>
 {% endblock %}

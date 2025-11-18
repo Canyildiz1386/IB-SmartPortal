@@ -1,111 +1,43 @@
 {% extends "base.html" %}
-
-{% block title %}My Quizzes{% endblock %}
-{% block page_title %}My Quizzes{% endblock %}
-
+{% block title %}My Quizzes - Smart Study{% endblock %}
 {% block content %}
-<div style="max-width: 1400px; margin: 0 auto; padding: 24px;">
-    
-    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
-        <div style="width: 56px; height: 56px; background: #1a73e8; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-            <span class="material-icons" style="font-size: 28px; color: white;">quiz</span>
-        </div>
-        <div>
-            <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 600; color: #202124;">My Quizzes</h1>
-            <p style="margin: 0; color: #5f6368; font-size: 16px;">View and take your assigned quizzes</p>
-        </div>
-    </div>
-    
-    {% if quizzes %}
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px;">
-            {% for quiz in quizzes %}
-                <div style="background: white; border-radius: 16px; border: 1px solid #e8eaed; overflow: hidden; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'">
-                    
-                    <div style="height: 6px; background: {% if quiz.completed_time %}linear-gradient(90deg, #34a853, #4caf50, #66bb6a){% else %}linear-gradient(90deg, #1a73e8, #4285f4, #5e97f6){% endif %};"></div>
-                    
-                    <div style="padding: 24px;">
-                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
-                            <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #202124; flex: 1; line-height: 1.3;" class="markdown-content">{{ quiz.title }}</h3>
-                            {% set difficulty = quiz.get('difficulty', 'medium') %}
-                            {% if difficulty == 'easy' %}
-                                <span style="padding: 4px 10px; border-radius: 12px; background: #e8f5e9; color: #2e7d32; font-size: 11px; font-weight: 600; border: 1px solid #81c784; white-space: nowrap;">🟢 Easy</span>
-                            {% elif difficulty == 'hard' %}
-                                <span style="padding: 4px 10px; border-radius: 12px; background: #ffebee; color: #c62828; font-size: 11px; font-weight: 600; border: 1px solid #e57373; white-space: nowrap;">🔴 Hard</span>
-                            {% else %}
-                                <span style="padding: 4px 10px; border-radius: 12px; background: #fff8e1; color: #f57f17; font-size: 11px; font-weight: 600; border: 1px solid #ffd54f; white-space: nowrap;">🟡 Medium</span>
-                            {% endif %}
-                        </div>
-                        
-                        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span class="material-icons" style="font-size: 16px; color: #5f6368;">help_outline</span>
-                                <span style="color: #5f6368; font-size: 14px;">
-                                    <strong style="color: #202124;">{{ quiz.questions|length }}</strong> questions
-                                </span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span class="material-icons" style="font-size: 16px; color: #5f6368;">schedule</span>
-                                <span style="color: #5f6368; font-size: 13px;">Assigned {{ quiz.assigned_time }}</span>
-                            </div>
-                            {% if quiz.completed_time %}
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span class="material-icons" style="font-size: 16px; color: #34a853;">check_circle</span>
-                                <span style="color: #34a853; font-size: 13px; font-weight: 500;">Completed {{ quiz.completed_time }}</span>
-                            </div>
-                            {% endif %}
-                        </div>
-                        
-                        {% if quiz.completed_time %}
-                        
-                        <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border: 2px solid #81c784; border-radius: 12px; padding: 16px; margin-bottom: 12px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <span style="color: #1b5e20; font-size: 12px; font-weight: 500; text-transform: uppercase; display: block; margin-bottom: 4px;">Your Score</span>
-                                    <span style="font-size: 32px; font-weight: 700; color: {% if quiz.score >= 80 %}#2e7d32{% elif quiz.score >= 60 %}#f57f17{% else %}#c62828{% endif %};">
-                                        {{ quiz.score }}%
-                                    </span>
-                                </div>
-                                <div style="width: 56px; height: 56px; background: {% if quiz.score >= 80 %}#34a853{% elif quiz.score >= 60 %}#fbbc04{% else %}#ea4335{% endif %}; border-radius: 14px; display: flex; align-items: center; justify-content: center;">
-                                    <span class="material-icons" style="font-size: 32px; color: white;">
-                                        {% if quiz.score >= 80 %}emoji_events{% elif quiz.score >= 60 %}thumb_up{% else %}school{% endif %}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <button onclick="window.location.href='{{ url_for('view_quiz_result', result_id=quiz.result_id) }}'" class="google-button secondary" style="width: 100%; padding: 12px; font-size: 14px; justify-content: center;">
-                            <span class="material-icons" style="font-size: 18px; margin-right: 6px;">visibility</span>
-                            View Results
-                        </button>
-                        {% else %}
-                        
-                        <div style="background: linear-gradient(135deg, #e8f0fe 0%, #d2e3fc 100%); border: 2px solid #4285f4; border-radius: 12px; padding: 16px; margin-bottom: 12px;">
-                            <div style="display: flex; align-items: center; gap: 12px;">
-                                <span class="material-icons" style="font-size: 24px; color: #1a73e8;">assignment_turned_in</span>
-                                <div>
-                                    <span style="color: #174ea6; font-size: 13px; font-weight: 600; display: block;">Ready to Take</span>
-                                    <span style="color: #1967d2; font-size: 12px;">Complete to see your score</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <a href="{{ url_for('take_quiz', quiz_id=quiz.id) }}" class="google-button" style="width: 100%; padding: 14px; font-size: 15px; background: #1a73e8; text-decoration: none; justify-content: center;">
-                            <span class="material-icons" style="font-size: 20px; margin-right: 8px;">play_arrow</span>
-                            Take Quiz
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <div style="background: white; padding: 64px; text-align: center; border-radius: 16px; border: 1px solid #e8eaed; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <div style="width: 80px; height: 80px; background: #f8f9fa; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; border: 1px solid #dadce0;">
-                <span class="material-icons" style="font-size: 40px; color: #5f6368;">quiz</span>
-            </div>
-            <h3 style="margin: 0 0 12px 0; color: #202124; font-size: 20px; font-weight: 600;">No Quizzes Assigned Yet</h3>
-            <p style="margin: 0; color: #5f6368; font-size: 14px;">Your teachers haven't assigned any quizzes to you yet</p>
-        </div>
-    {% endif %}
-</div>
+<h2>My Quizzes</h2>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Score</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for quiz in quizzes %}
+        <tr>
+            <td>{{ quiz.title }}</td>
+            <td>
+                {% if quiz.completed_time %}
+                    <span class="badge bg-success">Completed</span>
+                {% else %}
+                    <span class="badge bg-warning">Not Started</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if quiz.score %}
+                    {{ quiz.score }}%
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+            <td>
+                {% if not quiz.completed_time %}
+                    <a href="{{ url_for('take_quiz', quiz_id=quiz.id) }}" class="btn btn-sm btn-primary">Take Quiz</a>
+                {% else %}
+                    <span class="text-muted">Already completed</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 {% endblock %}

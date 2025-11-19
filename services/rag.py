@@ -90,12 +90,29 @@ class SmartStudyRAG:
 		self.nn=NearestNeighbors(n_neighbors=k_value,metric='cosine')
 		self.nn.fit(self.embeddings)
 
+	def normalize_query(self,query_text):
+		query_lower=query_text.lower().strip()
+		question_words={'what','is','are','the','a','an','can','how','does','do','explain','tell','me','about','define','definition','of'}
+		words=query_lower.split()
+		filtered_words=[w for w in words if w not in question_words]
+		if not filtered_words:
+			return query_lower
+		normalized=' '.join(filtered_words)
+		return normalized
+	
 	def search(self,query_text,top_k=5):
 		if not self.chunks or self.bm25 is None or self.nn is None:
 			return []
-		query_words=query_text.lower().split()
+		
+		normalized_query=self.normalize_query(query_text)
+		query_words=normalized_query.split()
+		if not query_words:
+			query_words=query_text.lower().split()
+		
 		bm25_scores=self.bm25.get_scores(query_words)
-		query_embedding=self.get_embeddings([query_text])
+		
+		search_query=normalized_query if normalized_query and normalized_query!=query_text.lower() else query_text
+		query_embedding=self.get_embeddings([search_query])
 		
 		chunk_count=len(self.chunks)
 		if chunk_count==0:
@@ -123,7 +140,7 @@ class SmartStudyRAG:
 		
 		results=[]
 		file_counts={}
-		max_per_file=max(1,top_k//3)
+		max_per_file=max(2,top_k//2)
 		for idx,score in scores:
 			if len(results)>=top_k:
 				break
@@ -136,23 +153,80 @@ class SmartStudyRAG:
 
 	def generate_answer(self,question_text,search_results_list,user_grade=None):
 		if not search_results_list:
-			return "I don't have enough information to answer that question."
+			return "I'm sorry, I couldn't find information to answer that question in the available materials."
+		
 		parts=[r['chunk'] for r in search_results_list]
 		context="\n\n".join(parts)
+		
+		avg_score=sum(r.get('score',0) for r in search_results_list)/len(search_results_list) if search_results_list else 0
+		
+		if avg_score<0.2:
+			return "I'm sorry, I couldn't find relevant information to answer that question in the available materials."
+		
 		self.rate_limit()
 		grade_prompt=""
 		if user_grade:
 			grade_prompt=f"\n\nStudent is in {user_grade} grade. Use appropriate language."
-		preamble=f"""Answer using only the context provided. If info isn't there, say so. Don't make things up.{grade_prompt}
+		
+		normalized=self.normalize_query(question_text)
+		query_variants=[question_text]
+		if normalized and normalized!=question_text.lower():
+			query_variants.append(f"Tell me about {normalized}")
+			query_variants.append(f"Explain {normalized}")
+		
+		best_answer=""
+		for variant in query_variants:
+			preamble=f"""You are a helpful tutor. Answer the question using ONLY the information provided in the context below. 
+- If the answer is clearly in the context, provide a clear and comprehensive answer.
+- If you find relevant information even if not perfectly matching, use it to answer.
+- Only say you don't know if there is truly no relevant information in the context.
+- Be thorough and helpful.{grade_prompt}
 
-Format: plain text, no boxes or special formatting. Be concise."""
-		resp=self.client.chat(message=question_text,model='command-a-03-2025',preamble=preamble,chat_history=[],documents=[{"text":context}])
-		ans=resp.text.strip()
-		if ans.startswith('```'):
-			lines=ans.split('\n')
+Format: plain text, no code blocks or special formatting. Be clear and informative."""
+			
+			try:
+				resp=self.client.chat(
+					message=variant,
+					model='command-a-03-2025',
+					preamble=preamble,
+					chat_history=[],
+					documents=[{"text":context}]
+				)
+				ans=resp.text.strip()
+				
+				if ans and len(ans)>10:
+					low_ans=ans.lower()
+					negative_phrases=["i don't know","i cannot","not in","couldn't find","don't have","no information","unable to","i'm sorry, i couldn't","i'm sorry i couldn't"]
+					if not any(phrase in low_ans for phrase in negative_phrases):
+						best_answer=ans
+						break
+					elif not best_answer:
+						best_answer=ans
+			except Exception:
+				try:
+					resp=self.client.chat(
+						message=variant,
+						model='command',
+						preamble=preamble,
+						chat_history=[],
+						documents=[{"text":context}]
+					)
+					ans=resp.text.strip()
+					if ans and len(ans)>10:
+						best_answer=ans
+						break
+				except Exception:
+					continue
+		
+		if not best_answer:
+			best_answer="I'm sorry, I couldn't find a clear answer to that question in the available materials."
+		
+		if best_answer.startswith('```'):
+			lines=best_answer.split('\n')
 			if len(lines)>2 and lines[0].startswith('```'):
-				ans='\n'.join(lines[1:-1])
-		return ans
+				best_answer='\n'.join(lines[1:-1])
+		
+		return best_answer.strip()
 
 	def generate_quiz(self,num_questions=5,description="",subject_id=None,difficulty="medium",existing_questions=None):
 		if not self.chunks:

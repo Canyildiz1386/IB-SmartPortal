@@ -43,7 +43,31 @@ def init_db():
         question TEXT NOT NULL,
         answer TEXT NOT NULL,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        response_time REAL,
+        source_chunks TEXT,
+        confidence_score REAL,
         FOREIGN KEY (user_id) REFERENCES users (id)
+    )''')
+    try:
+        cursor.execute('ALTER TABLE qa_logs ADD COLUMN response_time REAL')
+    except:
+        pass
+    try:
+        cursor.execute('ALTER TABLE qa_logs ADD COLUMN source_chunks TEXT')
+    except:
+        pass
+    try:
+        cursor.execute('ALTER TABLE qa_logs ADD COLUMN confidence_score REAL')
+    except:
+        pass
+    cursor.execute('''CREATE TABLE IF NOT EXISTS qa_corrections (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        qa_log_id INTEGER,
+        teacher_id INTEGER,
+        corrected_answer TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (qa_log_id) REFERENCES qa_logs (id),
+        FOREIGN KEY (teacher_id) REFERENCES users (id)
     )''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS quizzes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,6 +105,17 @@ def init_db():
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (from_id) REFERENCES users (id),
         FOREIGN KEY (to_id) REFERENCES users (id)
+    )''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        subject_id INTEGER,
+        title TEXT NOT NULL,
+        content TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id),
+        FOREIGN KEY (subject_id) REFERENCES subjects (id)
     )''')
     cursor.execute('SELECT COUNT(*) FROM subjects')
     if cursor.fetchone()[0] == 0:
@@ -207,30 +242,77 @@ def update_material_indexed(material_id, indexed=1):
     except:
         return False
 
-def log_qa(user_id, question, answer):
+def log_qa(user_id, question, answer, response_time=None, source_chunks=None, confidence_score=None):
     try:
         conn = get_db_connection()
         c = conn.cursor()
-        c.execute('INSERT INTO qa_logs (user_id, question, answer) VALUES (?, ?, ?)', (user_id, question, answer))
+        source_chunks_json = json.dumps(source_chunks) if source_chunks else None
+        c.execute('INSERT INTO qa_logs (user_id, question, answer, response_time, source_chunks, confidence_score) VALUES (?, ?, ?, ?, ?, ?)', 
+                 (user_id, question, answer, response_time, source_chunks_json, confidence_score))
+        log_id = c.lastrowid
         conn.commit()
         conn.close()
+        return log_id
     except:
-        pass
+        return None
 
 def get_qa_logs(user_id=None):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         if user_id:
-            cursor.execute('SELECT question, answer, timestamp FROM qa_logs WHERE user_id = ? ORDER BY timestamp DESC', (user_id,))
+            cursor.execute('SELECT id, user_id, question, answer, timestamp, response_time, source_chunks, confidence_score FROM qa_logs WHERE user_id = ? ORDER BY timestamp DESC', (user_id,))
         else:
-            cursor.execute('SELECT question, answer, timestamp FROM qa_logs ORDER BY timestamp DESC')
+            cursor.execute('SELECT id, user_id, question, answer, timestamp, response_time, source_chunks, confidence_score FROM qa_logs ORDER BY timestamp DESC')
         rows = cursor.fetchall()
         conn.close()
         logs = []
         for r in rows:
-            logs.append({'question': r[0], 'answer': r[1], 'timestamp': r[2]})
+            source_chunks = json.loads(r[6]) if r[6] else []
+            logs.append({
+                'id': r[0],
+                'user_id': r[1],
+                'question': r[2], 
+                'answer': r[3], 
+                'timestamp': r[4],
+                'response_time': r[5],
+                'source_chunks': source_chunks,
+                'confidence_score': r[7]
+            })
         return logs
+    except:
+        return []
+
+def add_qa_correction(qa_log_id, teacher_id, corrected_answer):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO qa_corrections (qa_log_id, teacher_id, corrected_answer) VALUES (?, ?, ?)', 
+                      (qa_log_id, teacher_id, corrected_answer))
+        correction_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return correction_id
+    except:
+        return None
+
+def get_qa_corrections(qa_log_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM qa_corrections WHERE qa_log_id = ? ORDER BY created_at DESC', (qa_log_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        corrections = []
+        for r in rows:
+            corrections.append({
+                'id': r[0],
+                'qa_log_id': r[1],
+                'teacher_id': r[2],
+                'corrected_answer': r[3],
+                'created_at': r[4]
+            })
+        return corrections
     except:
         return []
 
@@ -435,6 +517,70 @@ def update_subject(subject_id, name):
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('UPDATE subjects SET name = ? WHERE id = ?', (name, subject_id))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
+
+def create_note(user_id, title, content, subject_id=None):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO notes (user_id, title, content, subject_id) VALUES (?, ?, ?, ?)', (user_id, title, content, subject_id))
+        note_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return note_id
+    except:
+        return None
+
+def get_user_notes(user_id, subject_id=None):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        if subject_id:
+            cursor.execute('SELECT n.*, s.name as subject_name FROM notes n LEFT JOIN subjects s ON n.subject_id = s.id WHERE n.user_id = ? AND n.subject_id = ? ORDER BY n.updated_at DESC', (user_id, subject_id))
+        else:
+            cursor.execute('SELECT n.*, s.name as subject_name FROM notes n LEFT JOIN subjects s ON n.subject_id = s.id WHERE n.user_id = ? ORDER BY n.updated_at DESC', (user_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        notes = []
+        for r in rows:
+            notes.append({'id': r[0], 'user_id': r[1], 'subject_id': r[2], 'title': r[3], 'content': r[4], 'created_at': r[5], 'updated_at': r[6], 'subject_name': r[7]})
+        return notes
+    except:
+        return []
+
+def get_note_by_id(note_id, user_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT n.*, s.name as subject_name FROM notes n LEFT JOIN subjects s ON n.subject_id = s.id WHERE n.id = ? AND n.user_id = ?', (note_id, user_id))
+        r = cursor.fetchone()
+        conn.close()
+        if r:
+            return {'id': r[0], 'user_id': r[1], 'subject_id': r[2], 'title': r[3], 'content': r[4], 'created_at': r[5], 'updated_at': r[6], 'subject_name': r[7]}
+        return None
+    except:
+        return None
+
+def update_note(note_id, user_id, title, content, subject_id=None):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('UPDATE notes SET title = ?, content = ?, subject_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?', (title, content, subject_id, note_id, user_id))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
+
+def delete_note(note_id, user_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM notes WHERE id = ? AND user_id = ?', (note_id, user_id))
         conn.commit()
         conn.close()
         return True

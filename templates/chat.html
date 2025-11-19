@@ -7,8 +7,29 @@
         <div id="chatMessages" style="height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; background: #f9f9f9;">
             {% for msg in chat_history %}
             <div class="mb-3">
-                <strong>You:</strong> {{ msg.question }}<br>
-                <strong>AI:</strong> {{ msg.answer }}
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <strong>You:</strong> {{ msg.question }}<br>
+                        <strong>AI:</strong> {{ msg.answer }}
+                        {% if msg.sources %}
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <strong>Sources:</strong>
+                                {% for source in msg.sources %}
+                                <span class="badge bg-info me-1">{{ source.metadata.get('file', 'Unknown') }} ({{ "%.1f"|format(source.score * 100) }}%)</span>
+                                {% endfor %}
+                            </small>
+                        </div>
+                        {% endif %}
+                        {% if msg.confidence is defined %}
+                        <div class="mt-1">
+                            <small class="badge {% if msg.confidence > 0.7 %}bg-success{% elif msg.confidence > 0.4 %}bg-warning{% else %}bg-danger{% endif %}">
+                                Confidence: {{ "%.1f"|format(msg.confidence * 100) }}%
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
             {% endfor %}
         </div>
@@ -28,6 +49,8 @@ document.getElementById('chatForm').addEventListener('submit', function(e) {
     const messagesDiv = document.getElementById('chatMessages');
     messagesDiv.innerHTML += '<div class="mb-3"><strong>You:</strong> ' + question + '</div>';
     this.querySelector('input').value = '';
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    
     fetch('/chat', {
         method: 'POST',
         headers: {'X-Requested-With': 'XMLHttpRequest'},
@@ -36,11 +59,32 @@ document.getElementById('chatForm').addEventListener('submit', function(e) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            messagesDiv.innerHTML += '<div class="mb-3"><strong>AI:</strong> ' + data.answer + '</div>';
+            let sourcesHtml = '';
+            if (data.sources && data.sources.length > 0) {
+                sourcesHtml = '<div class="mt-2"><small class="text-muted"><strong>Sources:</strong> ';
+                data.sources.forEach(source => {
+                    const fileName = source.metadata && source.metadata.file ? source.metadata.file : 'Unknown';
+                    const score = (source.score * 100).toFixed(1);
+                    sourcesHtml += `<span class="badge bg-info me-1">${fileName} (${score}%)</span>`;
+                });
+                sourcesHtml += '</small></div>';
+            }
+            
+            let confidenceHtml = '';
+            if (data.confidence !== undefined) {
+                const confClass = data.confidence > 70 ? 'bg-success' : data.confidence > 40 ? 'bg-warning' : 'bg-danger';
+                confidenceHtml = `<div class="mt-1"><small class="badge ${confClass}">Confidence: ${data.confidence}%</small></div>`;
+            }
+            
+            messagesDiv.innerHTML += `<div class="mb-3"><strong>AI:</strong> ${data.answer}${sourcesHtml}${confidenceHtml}</div>`;
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         } else {
             alert('Error: ' + data.error);
         }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
     });
 });
 </script>

@@ -12,9 +12,11 @@ from database.db import add_subject, delete_subject, update_subject
 from database.db import get_user_by_id, update_user, remove_user_subjects
 from database.db import create_quiz, get_teacher_quizzes, get_student_quizzes, get_quiz_by_id, log_quiz_result, assign_quiz_to_students
 from database.db import update_quiz_questions
-from database.db import log_qa, get_qa_logs
+from database.db import log_qa, get_qa_logs, add_qa_correction, get_qa_corrections
+from database.db import create_note, get_user_notes, get_note_by_id, update_note, delete_note
 from utils.auth import login_required, admin_required, teacher_required, login_user, logout_user, get_current_user
 from services.rag_service import get_rag_system
+from rank_bm25 import BM25Okapi
 from utils.config import UPLOAD_FOLDER, USER_IMAGES_FOLDER, MAX_FILE_SIZE, SECRET_KEY
 from utils.file_utils import allowed_file
 
@@ -267,11 +269,19 @@ def chat():
         ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         if q:
             try:
+                import time
+                start_time = time.time()
                 ans, srcs = rag.query(q, top_k=3)
-                log_qa(session['user_id'], q, ans)
+                response_time = time.time() - start_time
+                
+                avg_confidence = sum(s.get('score', 0) for s in srcs) / len(srcs) if srcs else 0
+                source_data = [{'chunk': s.get('chunk', ''), 'score': s.get('score', 0), 'metadata': s.get('metadata', {})} for s in srcs]
+                
+                log_qa(session['user_id'], q, ans, response_time, source_data, avg_confidence)
+                
                 if 'chat_history' not in session:
                     session['chat_history'] = []
-                session['chat_history'].append({'question': q, 'answer': ans, 'sources': srcs})
+                session['chat_history'].append({'question': q, 'answer': ans, 'sources': srcs, 'confidence': avg_confidence})
                 if len(session['chat_history']) > 10:
                     session['chat_history'] = session['chat_history'][-10:]
                 session.modified = True
@@ -280,7 +290,9 @@ def chat():
                         'success': True,
                         'question': q,
                         'answer': ans,
-                        'sources': [{'metadata': s.get('metadata', {}), 'score': s.get('score', 0)} for s in srcs]
+                        'sources': [{'metadata': s.get('metadata', {}), 'score': s.get('score', 0), 'chunk': s.get('chunk', '')[:100]} for s in srcs],
+                        'confidence': round(avg_confidence * 100, 1),
+                        'response_time': round(response_time, 2)
                     })
             except Exception as e:
                 if ajax:
@@ -522,6 +534,66 @@ def take_quiz(quiz_id):
         return redirect(url_for('student_quizzes'))
     return render_template('take_quiz.html', quiz=quiz, questions=qs)
 
+@app.route('/notes', methods=['GET', 'POST'])
+@login_required
+def notes():
+    user = get_current_user()
+    if user['role'] != 'student':
+        flash('Access denied', 'error')
+        return redirect(url_for('index'))
+    
+    user_subjects = get_user_subjects(user['id'])
+    filter_subject = request.args.get('subject_id', type=int)
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'create':
+            title = request.form.get('title', '').strip()
+            content = request.form.get('content', '')
+            subject_id = request.form.get('subject_id', type=int)
+            if title:
+                note_id = create_note(user['id'], title, content, subject_id)
+                if note_id:
+                    flash('Note created successfully', 'success')
+                else:
+                    flash('Error creating note', 'error')
+            else:
+                flash('Title is required', 'error')
+        elif action == 'update':
+            note_id = request.form.get('note_id')
+            title = request.form.get('title', '').strip()
+            content = request.form.get('content', '')
+            subject_id = request.form.get('subject_id', type=int)
+            if note_id and title:
+                if update_note(int(note_id), user['id'], title, content, subject_id):
+                    flash('Note updated successfully', 'success')
+                else:
+                    flash('Error updating note', 'error')
+            else:
+                flash('Title is required', 'error')
+        elif action == 'delete':
+            note_id = request.form.get('note_id')
+            if note_id:
+                if delete_note(int(note_id), user['id']):
+                    flash('Note deleted successfully', 'success')
+                else:
+                    flash('Error deleting note', 'error')
+        return redirect(url_for('notes', subject_id=filter_subject))
+    
+    user_notes = get_user_notes(user['id'], filter_subject)
+    return render_template('notes.html', notes=user_notes, subjects=user_subjects, filter_subject=filter_subject)
+
+@app.route('/notes/<int:note_id>')
+@login_required
+def get_note(note_id):
+    user = get_current_user()
+    if user['role'] != 'student':
+        return jsonify({'error': 'Access denied'}), 403
+    note = get_note_by_id(note_id, user['id'])
+    if note:
+        return jsonify(note)
+    return jsonify({'error': 'Note not found'}), 404
+
 @app.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
@@ -542,6 +614,58 @@ def profile():
             flash('Profile updated', 'success')
         return redirect(url_for('profile'))
     return render_template('profile.html', user=user)
+
+@app.route('/query_history')
+@admin_required
+def query_history():
+    logs = get_qa_logs()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    for log in logs:
+        cursor.execute('SELECT username FROM users WHERE id = ?', (log['user_id'],))
+        user_row = cursor.fetchone()
+        log['username'] = user_row[0] if user_row else 'Unknown'
+        log['corrections'] = get_qa_corrections(log['id'])
+    conn.close()
+    return render_template('query_history.html', logs=logs)
+
+@app.route('/correct_answer/<int:qa_log_id>', methods=['POST'])
+@teacher_required
+def correct_answer(qa_log_id):
+    corrected_answer = request.form.get('corrected_answer', '').strip()
+    if corrected_answer:
+        correction_id = add_qa_correction(qa_log_id, session['user_id'], corrected_answer)
+        if correction_id:
+            try:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute('SELECT question FROM qa_logs WHERE id = ?', (qa_log_id,))
+                qa_row = cursor.fetchone()
+                conn.close()
+                if qa_row:
+                    question = qa_row[0]
+                    rag = get_rag_system()
+                    correction_text = f"Question: {question}\nCorrect Answer: {corrected_answer}"
+                    rag.chunks.append(correction_text)
+                    rag.meta.append({'file': 'correction', 'chunk_id': len(rag.chunks)-1, 'file_path': 'correction', 'subject_id': None})
+                    if rag.chunks:
+                        from rank_bm25 import BM25Okapi
+                        tokenized_chunks = [chunk.lower().split() for chunk in rag.chunks]
+                        rag.bm25 = BM25Okapi(tokenized_chunks)
+                        rag.embeddings = rag.get_embeddings(rag.chunks)
+                        embed_count = len(rag.embeddings)
+                        k_value = min(10, max(1, embed_count))
+                        from sklearn.neighbors import NearestNeighbors
+                        rag.nn = NearestNeighbors(n_neighbors=k_value, metric='cosine')
+                        rag.nn.fit(rag.embeddings)
+                    flash('Correction added and indexed successfully', 'success')
+            except Exception as e:
+                flash(f'Error indexing correction: {str(e)}', 'error')
+        else:
+            flash('Error saving correction', 'error')
+    else:
+        flash('Please provide a corrected answer', 'error')
+    return redirect(request.referrer or url_for('query_history'))
 
 if __name__ == '__main__':
     init_db()

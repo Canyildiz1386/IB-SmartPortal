@@ -29,14 +29,19 @@
             <th>Filename</th>
             <th>Subject</th>
             <th>Upload Time</th>
+            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
         {% for material in materials %}
         <tr>
             <td>{{ material.filename }}</td>
-            <td>{{ material.subject_id }}</td>
+            <td>{{ material.subject_name }}</td>
             <td>{{ material.upload_time }}</td>
+            <td>
+                <a href="{{ url_for('index_material', material_id=material.id) }}" class="btn btn-sm btn-primary" onclick="return confirm('Rebuild index for this file?')">Index</a>
+                <a href="{{ url_for('delete_material_route', material_id=material.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this material?')">Delete</a>
+            </td>
         </tr>
         {% endfor %}
     </tbody>

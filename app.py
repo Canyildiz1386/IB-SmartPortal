@@ -7,7 +7,11 @@ import uuid
 
 from database.db import init_db, verify_user, add_user, get_all_users, delete_user, get_db_connection
 from database.db import add_material, get_materials, get_subjects, get_user_subjects, assign_user_subject
+from database.db import get_material_by_id, delete_material, update_material_indexed
+from database.db import add_subject, delete_subject, update_subject
+from database.db import get_user_by_id, update_user, remove_user_subjects
 from database.db import create_quiz, get_teacher_quizzes, get_student_quizzes, get_quiz_by_id, log_quiz_result, assign_quiz_to_students
+from database.db import update_quiz_questions
 from database.db import log_qa, get_qa_logs
 from utils.auth import login_required, admin_required, teacher_required, login_user, logout_user, get_current_user
 from services.rag_service import get_rag_system
@@ -52,20 +56,42 @@ def logout():
 @admin_required
 def admin():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        role = request.form['role']
-        subject_ids = request.form.getlist('subject_ids')
-        try:
-            uid = add_user(username, password, role)
-            if subject_ids and role in ['student', 'teacher']:
-                for sid in subject_ids:
-                    assign_user_subject(uid, sid)
-            flash(f'User {username} created successfully!', 'success')
-        except Exception as e:
-            flash(f'Error: {str(e)}', 'error')
+        action = request.form.get('action', 'add')
+        if action == 'add':
+            username = request.form['username']
+            password = request.form['password']
+            role = request.form['role']
+            subject_ids = request.form.getlist('subject_ids')
+            try:
+                uid = add_user(username, password, role)
+                if subject_ids and role in ['student', 'teacher']:
+                    for sid in subject_ids:
+                        assign_user_subject(uid, sid)
+                flash(f'User {username} created successfully!', 'success')
+            except Exception as e:
+                flash(f'Error: {str(e)}', 'error')
+        elif action == 'edit':
+            user_id = request.form.get('user_id')
+            username = request.form.get('username', '').strip()
+            password = request.form.get('password', '').strip()
+            role = request.form.get('role')
+            subject_ids = request.form.getlist('subject_ids')
+            try:
+                if user_id and username:
+                    update_user(user_id, username, password if password else None, role)
+                    if role in ['student', 'teacher']:
+                        remove_user_subjects(user_id)
+                        for sid in subject_ids:
+                            assign_user_subject(user_id, sid)
+                    flash(f'User {username} updated successfully!', 'success')
+            except Exception as e:
+                flash(f'Error: {str(e)}', 'error')
     users = get_all_users()
     subjects = get_subjects()
+    for user in users:
+        user_subjects = get_user_subjects(user['id'])
+        user['subjects'] = user_subjects
+        user['subject_ids'] = [s['id'] for s in user_subjects]
     return render_template('admin.html', users=users, subjects=subjects)
 
 @app.route('/delete_user/<int:user_id>')
@@ -77,6 +103,53 @@ def delete_user_route(user_id):
         delete_user(user_id)
         flash('User deleted', 'success')
     return redirect(url_for('admin'))
+
+@app.route('/manage_subjects', methods=['GET', 'POST'])
+@admin_required
+def manage_subjects():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'add':
+            name = request.form.get('name', '').strip()
+            if name:
+                try:
+                    add_subject(name)
+                    flash(f'Subject "{name}" added successfully', 'success')
+                except Exception as e:
+                    flash(f'Error: {str(e)}', 'error')
+        elif action == 'update':
+            subject_id = request.form.get('subject_id')
+            name = request.form.get('name', '').strip()
+            if subject_id and name:
+                try:
+                    update_subject(int(subject_id), name)
+                    flash(f'Subject updated successfully', 'success')
+                except Exception as e:
+                    flash(f'Error: {str(e)}', 'error')
+    subjects = get_subjects()
+    return render_template('manage_subjects.html', subjects=subjects)
+
+@app.route('/delete_subject/<int:subject_id>')
+@admin_required
+def delete_subject_route(subject_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM materials WHERE subject_id = ?', (subject_id,))
+        mat_count = cursor.fetchone()[0]
+        cursor.execute('SELECT COUNT(*) FROM quizzes WHERE subject_id = ?', (subject_id,))
+        quiz_count = cursor.fetchone()[0]
+        cursor.execute('SELECT COUNT(*) FROM user_subjects WHERE subject_id = ?', (subject_id,))
+        user_count = cursor.fetchone()[0]
+        conn.close()
+        if mat_count > 0 or quiz_count > 0 or user_count > 0:
+            flash('Cannot delete subject: it is being used by materials, quizzes, or users', 'error')
+        else:
+            delete_subject(subject_id)
+            flash('Subject deleted successfully', 'success')
+    except Exception as e:
+        flash(f'Error: {str(e)}', 'error')
+    return redirect(url_for('manage_subjects'))
 
 @app.route('/upload', methods=['GET', 'POST'])
 @teacher_required
@@ -125,7 +198,55 @@ def upload():
         return redirect(url_for('upload'))
     mats = get_materials()
     subs = get_user_subjects(user['id'])
+    all_subjects = get_subjects()
+    subject_dict = {s['id']: s['name'] for s in all_subjects}
+    for mat in mats:
+        mat['subject_name'] = subject_dict.get(mat['subject_id'], 'Unknown')
     return render_template('upload.html', materials=mats, subjects=subs)
+
+@app.route('/index_material/<int:material_id>')
+@teacher_required
+def index_material(material_id):
+    try:
+        material = get_material_by_id(material_id)
+        if not material:
+            flash('Material not found', 'error')
+            return redirect(url_for('upload'))
+        rag = get_rag_system()
+        mats = get_materials()
+        rag.rebuild_from_db(mats)
+        update_material_indexed(material_id, indexed=1)
+        flash(f'Material "{material["filename"]}" indexed successfully', 'success')
+    except Exception as e:
+        flash(f'Error indexing material: {str(e)}', 'error')
+    return redirect(url_for('upload'))
+
+@app.route('/delete_material/<int:material_id>')
+@teacher_required
+def delete_material_route(material_id):
+    try:
+        material = get_material_by_id(material_id)
+        if not material:
+            flash('Material not found', 'error')
+            return redirect(url_for('upload'))
+        filename = material['filename']
+        if delete_material(material_id):
+            rag = get_rag_system()
+            mats = get_materials()
+            if mats:
+                rag.rebuild_from_db(mats)
+            else:
+                rag.chunks = []
+                rag.meta = []
+                rag.bm25 = None
+                rag.nn = None
+                rag.embeddings = None
+            flash(f'Material "{filename}" deleted successfully', 'success')
+        else:
+            flash('Error deleting material', 'error')
+    except Exception as e:
+        flash(f'Error: {str(e)}', 'error')
+    return redirect(url_for('upload'))
 
 @app.route('/chat', methods=['GET', 'POST'])
 @login_required
@@ -267,6 +388,79 @@ def assign_quiz(quiz_id):
 def my_quizzes():
     quizzes = get_teacher_quizzes(session['user_id'])
     return render_template('my_quizzes.html', quizzes=quizzes)
+
+@app.route('/edit_quiz/<int:quiz_id>', methods=['GET', 'POST'])
+@teacher_required
+def edit_quiz(quiz_id):
+    quiz = get_quiz_by_id(quiz_id)
+    if not quiz or quiz['teacher_id'] != session['user_id']:
+        flash('Quiz not found', 'error')
+        return redirect(url_for('my_quizzes'))
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) FROM quiz_assignments WHERE quiz_id = ?', (quiz_id,))
+    assigned_count = cursor.fetchone()[0]
+    conn.close()
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        try:
+            questions = quiz['questions'] if isinstance(quiz['questions'], list) else json.loads(quiz['questions'])
+            
+            if action == 'add':
+                question_text = request.form.get('question', '').strip()
+                option_a = request.form.get('option_a', '').strip()
+                option_b = request.form.get('option_b', '').strip()
+                option_c = request.form.get('option_c', '').strip()
+                option_d = request.form.get('option_d', '').strip()
+                correct = request.form.get('correct', '').strip().upper()
+                
+                if question_text and option_a and option_b and option_c and option_d and correct in ['A', 'B', 'C', 'D']:
+                    new_question = {
+                        'question': question_text,
+                        'options': [option_a, option_b, option_c, option_d],
+                        'correct': correct,
+                        'type': 'multiple_choice'
+                    }
+                    questions.append(new_question)
+                    update_quiz_questions(quiz_id, questions)
+                    flash('Question added successfully', 'success')
+                else:
+                    flash('Invalid question data', 'error')
+            
+            elif action == 'delete':
+                question_index = int(request.form.get('question_index'))
+                if 0 <= question_index < len(questions):
+                    questions.pop(question_index)
+                    update_quiz_questions(quiz_id, questions)
+                    flash('Question deleted successfully', 'success')
+                else:
+                    flash('Invalid question index', 'error')
+            
+            elif action == 'generate':
+                num_q = int(request.form.get('num_questions', 1))
+                desc = request.form.get('description', '')
+                sid = quiz.get('subject_id')
+                try:
+                    rag = get_rag_system()
+                    existing_questions = questions
+                    new_qs = rag.generate_quiz(num_q, desc, sid, difficulty="medium", existing_questions=existing_questions)
+                    if new_qs:
+                        questions.extend(new_qs)
+                        update_quiz_questions(quiz_id, questions)
+                        flash(f'{len(new_qs)} question(s) generated successfully', 'success')
+                    else:
+                        flash('Failed to generate questions', 'error')
+                except Exception as e:
+                    flash(f'Error generating questions: {str(e)}', 'error')
+            
+            return redirect(url_for('edit_quiz', quiz_id=quiz_id))
+        except Exception as e:
+            flash(f'Error: {str(e)}', 'error')
+    
+    questions = quiz['questions'] if isinstance(quiz['questions'], list) else json.loads(quiz['questions'])
+    return render_template('edit_quiz.html', quiz=quiz, questions=questions, assigned_count=assigned_count)
 
 @app.route('/student_quizzes')
 @login_required

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Manage Subjects - Smart Study{% endblock %}
+{% block content %}
+<h2>Manage Subjects</h2>
+<div class="card mb-4">
+    <div class="card-header">Add New Subject</div>
+    <div class="card-body">
+        <form method="POST">
+            <input type="hidden" name="action" value="add">
+            <div class="row">
+                <div class="col-md-10">
+                    <input type="text" name="name" class="form-control" placeholder="Subject Name" required>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary">Add Subject</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+<h3>All Subjects</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for subject in subjects %}
+        <tr>
+            <td>{{ subject.id }}</td>
+            <td>
+                <form method="POST" class="d-inline" id="form-{{ subject.id }}">
+                    <input type="hidden" name="action" value="update">
+                    <input type="hidden" name="subject_id" value="{{ subject.id }}">
+                    <input type="text" name="name" value="{{ subject.name }}" class="form-control form-control-sm d-inline-block" style="width: 200px;" required>
+                </form>
+            </td>
+            <td>
+                <button type="submit" form="form-{{ subject.id }}" class="btn btn-sm btn-primary">Update</button>
+                <a href="{{ url_for('delete_subject_route', subject_id=subject.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this subject?')">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

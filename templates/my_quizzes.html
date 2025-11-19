@@ -16,6 +16,7 @@
             <td>{{ quiz.title }}</td>
             <td>{{ quiz.created_at }}</td>
             <td>
+                <a href="{{ url_for('edit_quiz', quiz_id=quiz.id) }}" class="btn btn-sm btn-warning">Edit</a>
                 <a href="{{ url_for('assign_quiz', quiz_id=quiz.id) }}" class="btn btn-sm btn-primary">Assign</a>
             </td>
         </tr>

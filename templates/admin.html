@@ -21,7 +21,7 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <select name="subject_ids" class="form-select mb-2" multiple>
+                    <select name="subject_ids" class="form-select mb-2" multiple size="5" style="overflow-y: auto;">
                         {% for subject in subjects %}
                             <option value="{{ subject.id }}">{{ subject.name }}</option>
                         {% endfor %}
@@ -41,6 +41,7 @@
             <th>ID</th>
             <th>Username</th>
             <th>Role</th>
+            <th>Subjects</th>
             <th>Actions</th>
         </tr>
     </thead>
@@ -51,10 +52,66 @@
             <td>{{ user.username }}</td>
             <td>{{ user.role }}</td>
             <td>
+                {% if user.subjects %}
+                    {% for subj in user.subjects %}{{ subj.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+            <td>
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editUserModal{{ user.id }}">Edit</button>
                 <a href="{{ url_for('delete_user_route', user_id=user.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</a>
             </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+
+{% for user in users %}
+<div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit User: {{ user.username }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <input type="hidden" name="action" value="edit">
+                <input type="hidden" name="user_id" value="{{ user.id }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" name="username" class="form-control" value="{{ user.username }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password (leave blank to keep current)</label>
+                        <input type="password" name="password" class="form-control" placeholder="New password">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Role</label>
+                        <select name="role" class="form-select" required>
+                            <option value="student" {% if user.role == 'student' %}selected{% endif %}>Student</option>
+                            <option value="teacher" {% if user.role == 'teacher' %}selected{% endif %}>Teacher</option>
+                            <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Subjects</label>
+                        <select name="subject_ids" class="form-select" multiple size="5" style="overflow-y: auto;">
+                            {% for subject in subjects %}
+                                <option value="{{ subject.id }}" {% if subject.id in user.subject_ids %}selected{% endif %}>{{ subject.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
 {% endblock %}

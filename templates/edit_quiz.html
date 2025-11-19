@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Edit Quiz - Smart Study{% endblock %}
+{% block content %}
+<h2>Edit Quiz: {{ quiz.title }}</h2>
+
+{% if assigned_count > 0 %}
+<div class="alert alert-warning">
+    <strong>Note:</strong> This quiz has been assigned to {{ assigned_count }} student(s). Editing may affect their experience.
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-8">
+        <h3>Questions ({{ questions|length }})</h3>
+        {% if questions %}
+        <div class="list-group mb-4">
+            {% for question in questions %}
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <h5 class="mb-2">Question {{ loop.index }}</h5>
+                        <p class="mb-2"><strong>{{ question.question }}</strong></p>
+                        <div class="mb-2">
+                            <div>A) {{ question.options[0] }}</div>
+                            <div>B) {{ question.options[1] }}</div>
+                            <div>C) {{ question.options[2] }}</div>
+                            <div>D) {{ question.options[3] }}</div>
+                        </div>
+                        <small class="text-success"><strong>Correct Answer: {{ question.correct }}</strong></small>
+                    </div>
+                    <form method="POST" class="ms-2" onsubmit="return confirm('Are you sure you want to delete this question?')">
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="question_index" value="{{ loop.index0 }}">
+                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-info">No questions yet. Add questions below.</div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">Add Question</div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="action" value="add">
+                    <div class="mb-3">
+                        <label class="form-label">Question</label>
+                        <textarea name="question" class="form-control" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Option A</label>
+                        <input type="text" name="option_a" class="form-control" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Option B</label>
+                        <input type="text" name="option_b" class="form-control" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Option C</label>
+                        <input type="text" name="option_c" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Option D</label>
+                        <input type="text" name="option_d" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Correct Answer</label>
+                        <select name="correct" class="form-select" required>
+                            <option value="">Choose...</option>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Add Question</button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">Generate Questions (AI)</div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="action" value="generate">
+                    <div class="mb-3">
+                        <label class="form-label">Number of Questions</label>
+                        <input type="number" name="num_questions" class="form-control" value="1" min="1" max="10" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description/Requirements (optional)</label>
+                        <textarea name="description" class="form-control" rows="3" placeholder="e.g., Focus on chapter 5, difficulty: medium"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Generate Questions</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{{ url_for('my_quizzes') }}" class="btn btn-secondary">Back to My Quizzes</a>
+    <a href="{{ url_for('assign_quiz', quiz_id=quiz.id) }}" class="btn btn-primary">Assign Quiz</a>
+</div>
+{% endblock %}
+

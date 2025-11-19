@@ -7,7 +7,7 @@ rag_instance = None
 def init_rag_system():
     global rag_instance
     if rag_instance is None:
-        cohere_key = os.getenv('COHERE_API_KEY')
+        cohere_key = "4ChEA81Zn4SNyVFX9xMixi5yQcda1qZJG907k621"
         if not cohere_key:
             cohere_key = "nothing"
         rag_instance = SmartStudyRAG(cohere_key)

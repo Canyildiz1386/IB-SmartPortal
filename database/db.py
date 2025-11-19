@@ -172,6 +172,41 @@ def get_materials():
     except:
         return []
 
+def get_material_by_id(material_id):
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute('SELECT * FROM materials WHERE id = ?', (material_id,))
+        r = c.fetchone()
+        conn.close()
+        if r:
+            return {'id': r[0], 'filename': r[1], 'sha': r[2], 'content': r[3], 'subject_id': r[4], 'upload_time': r[5], 'indexed': r[6]}
+        return None
+    except:
+        return None
+
+def delete_material(material_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM materials WHERE id = ?', (material_id,))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
+
+def update_material_indexed(material_id, indexed=1):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('UPDATE materials SET indexed = ? WHERE id = ?', (indexed, material_id))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
+
 def log_qa(user_id, question, answer):
     try:
         conn = get_db_connection()
@@ -237,6 +272,51 @@ def assign_user_subject(user_id, subject_id):
     except:
         pass
 
+def get_user_by_id(user_id):
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute('SELECT id, username, role FROM users WHERE id = ?', (user_id,))
+        u = c.fetchone()
+        conn.close()
+        if u:
+            return {'id': u[0], 'username': u[1], 'role': u[2]}
+        return None
+    except:
+        return None
+
+def update_user(user_id, username, password=None, role=None):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        if password:
+            pwd_hash = hashlib.sha256(password.encode()).hexdigest()
+            if role:
+                cursor.execute('UPDATE users SET username = ?, password_hash = ?, role = ? WHERE id = ?', (username, pwd_hash, role, user_id))
+            else:
+                cursor.execute('UPDATE users SET username = ?, password_hash = ? WHERE id = ?', (username, pwd_hash, user_id))
+        else:
+            if role:
+                cursor.execute('UPDATE users SET username = ?, role = ? WHERE id = ?', (username, role, user_id))
+            else:
+                cursor.execute('UPDATE users SET username = ? WHERE id = ?', (username, user_id))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
+
+def remove_user_subjects(user_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM user_subjects WHERE user_id = ?', (user_id,))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
+
 def create_quiz(title, subject_id, teacher_id, questions):
     try:
         conn = get_db_connection()
@@ -249,6 +329,18 @@ def create_quiz(title, subject_id, teacher_id, questions):
         return quiz_id
     except:
         return None
+
+def update_quiz_questions(quiz_id, questions):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        questions_json = json.dumps(questions)
+        cursor.execute('UPDATE quizzes SET questions = ? WHERE id = ?', (questions_json, quiz_id))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
 
 def assign_quiz_to_students(quiz_id, student_ids):
     try:
@@ -314,3 +406,37 @@ def log_quiz_result(user_id, score, answers, quiz_id):
         return result_id
     except:
         return None
+
+def add_subject(name):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO subjects (name) VALUES (?)', (name,))
+        subject_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return subject_id
+    except:
+        return None
+
+def delete_subject(subject_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM subjects WHERE id = ?', (subject_id,))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
+
+def update_subject(subject_id, name):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('UPDATE subjects SET name = ? WHERE id = ?', (name, subject_id))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False

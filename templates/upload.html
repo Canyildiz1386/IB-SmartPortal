@@ -28,6 +28,7 @@
         <tr>
             <th>Filename</th>
             <th>Subject</th>
+            <th>Indexed Status</th>
             <th>Upload Time</th>
             <th>Actions</th>
         </tr>
@@ -37,6 +38,13 @@
         <tr>
             <td>{{ material.filename }}</td>
             <td>{{ material.subject_name }}</td>
+            <td>
+                {% if material.indexed %}
+                    <span class="badge bg-success">Indexed</span>
+                {% else %}
+                    <span class="badge bg-warning">Not Indexed</span>
+                {% endif %}
+            </td>
             <td>{{ material.upload_time }}</td>
             <td>
                 <a href="{{ url_for('index_material', material_id=material.id) }}" class="btn btn-sm btn-primary" onclick="return confirm('Rebuild index for this file?')">Index</a>

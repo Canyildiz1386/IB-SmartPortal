@@ -47,8 +47,28 @@ document.getElementById('chatForm').addEventListener('submit', function(e) {
     const formData = new FormData(this);
     const question = formData.get('question');
     const messagesDiv = document.getElementById('chatMessages');
-    messagesDiv.innerHTML += '<div class="mb-3"><strong>You:</strong> ' + question + '</div>';
+    
+    if (!question.trim()) {
+        return;
+    }
+    
+    messagesDiv.innerHTML += '<div class="mb-3"><strong>You:</strong> ' + escapeHtml(question) + '</div>';
     this.querySelector('input').value = '';
+    
+    const loadingId = 'loading-' + Date.now();
+    const loadingHtml = `
+        <div class="mb-3" id="${loadingId}">
+            <strong>AI:</strong> 
+            <span class="thinking-indicator">
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Thinking...
+                <span class="thinking-dots">
+                    <span>.</span><span>.</span><span>.</span>
+                </span>
+            </span>
+        </div>
+    `;
+    messagesDiv.innerHTML += loadingHtml;
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
     
     fetch('/chat', {
@@ -58,6 +78,11 @@ document.getElementById('chatForm').addEventListener('submit', function(e) {
     })
     .then(response => response.json())
     .then(data => {
+        const loadingElement = document.getElementById(loadingId);
+        if (loadingElement) {
+            loadingElement.remove();
+        }
+        
         if (data.success) {
             let sourcesHtml = '';
             if (data.sources && data.sources.length > 0) {
@@ -76,16 +101,68 @@ document.getElementById('chatForm').addEventListener('submit', function(e) {
                 confidenceHtml = `<div class="mt-1"><small class="badge ${confClass}">Confidence: ${data.confidence}%</small></div>`;
             }
             
-            messagesDiv.innerHTML += `<div class="mb-3"><strong>AI:</strong> ${data.answer}${sourcesHtml}${confidenceHtml}</div>`;
+            messagesDiv.innerHTML += `<div class="mb-3"><strong>AI:</strong> ${escapeHtml(data.answer)}${sourcesHtml}${confidenceHtml}</div>`;
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         } else {
-            alert('Error: ' + data.error);
+            messagesDiv.innerHTML += `<div class="mb-3 text-danger"><strong>AI:</strong> Error: ${escapeHtml(data.error || 'Something went wrong')}</div>`;
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred. Please try again.');
+        const loadingElement = document.getElementById(loadingId);
+        if (loadingElement) {
+            loadingElement.remove();
+        }
+        messagesDiv.innerHTML += `<div class="mb-3 text-danger"><strong>AI:</strong> An error occurred. Please try again.</div>`;
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
     });
 });
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 </script>
+<style>
+.thinking-indicator {
+    display: inline-flex;
+    align-items: center;
+    color: #6c757d;
+    font-style: italic;
+}
+
+.thinking-dots span {
+    animation: thinking 1.4s infinite;
+    opacity: 0;
+}
+
+.thinking-dots span:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.thinking-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.thinking-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes thinking {
+    0%, 60%, 100% {
+        opacity: 0;
+    }
+    30% {
+        opacity: 1;
+    }
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.15em;
+}
+</style>
 {% endblock %}

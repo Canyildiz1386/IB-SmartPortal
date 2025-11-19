@@ -1,0 +1,10 @@
+Flask==2.3.3
+Flask-SocketIO==5.3.5
+python-socketio==5.10.0
+eventlet==0.33.3
+rank-bm25==0.2.2
+scikit-learn==1.3.2
+numpy==1.24.3
+PyPDF2==3.0.1
+Werkzeug==2.3.7
+

@@ -1,5 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from werkzeug.utils import secure_filename
+from datetime import datetime
 import os
 import hashlib
 import json
@@ -17,11 +19,12 @@ from database.db import create_note, get_user_notes, get_note_by_id, update_note
 from utils.auth import login_required, admin_required, teacher_required, login_user, logout_user, get_current_user
 from services.rag_service import get_rag_system
 from rank_bm25 import BM25Okapi
-from utils.config import UPLOAD_FOLDER, USER_IMAGES_FOLDER, MAX_FILE_SIZE, SECRET_KEY
+from utils.config import UPLOAD_FOLDER, MAX_FILE_SIZE, SECRET_KEY
 from utils.file_utils import allowed_file
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 @app.route('/')
 def index():
@@ -319,6 +322,9 @@ def chat_teacher():
         cursor.execute('SELECT DISTINCT u.id, u.username FROM users u JOIN user_subjects us1 ON u.id = us1.user_id JOIN user_subjects us2 ON us1.subject_id = us2.subject_id WHERE u.role = "student" AND us2.user_id = ?', (user['id'],))
     teachers = cursor.fetchall()
     conn.close()
+    
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
     if request.method == 'POST':
         teacher_id = request.form.get('teacher_id')
         message = request.form.get('message', '').strip()
@@ -327,12 +333,61 @@ def chat_teacher():
                 conn = get_db_connection()
                 cursor = conn.cursor()
                 cursor.execute('INSERT INTO teacher_chat (from_id, to_id, message) VALUES (?, ?, ?)', (user['id'], teacher_id, message))
+                message_id = cursor.lastrowid
+                cursor.execute('SELECT tc.*, u1.username as from_name, u2.username as to_name FROM teacher_chat tc JOIN users u1 ON tc.from_id = u1.id JOIN users u2 ON tc.to_id = u2.id WHERE tc.id = ?', (message_id,))
+                msg_data = cursor.fetchone()
                 conn.commit()
                 conn.close()
+                
+                # Format timestamp - handle both string and datetime objects
+                timestamp = msg_data[4]
+                if timestamp:
+                    if isinstance(timestamp, datetime):
+                        timestamp_str = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                    elif isinstance(timestamp, str):
+                        timestamp_str = timestamp
+                    else:
+                        timestamp_str = str(timestamp)
+                else:
+                    timestamp_str = ''
+                
+                # Emit WebSocket event for real-time messaging
+                room_name = f'chat_{min(int(user["id"]), int(teacher_id))}_{max(int(user["id"]), int(teacher_id))}'
+                socketio.emit('new_message', {
+                    'id': msg_data[0],
+                    'from_id': msg_data[1],
+                    'to_id': msg_data[2],
+                    'message': msg_data[3],
+                    'timestamp': timestamp_str,
+                    'from_name': msg_data[5],
+                    'to_name': msg_data[6]
+                }, room=room_name)
+                
+                if is_ajax:
+                    return jsonify({
+                        'success': True,
+                        'message': {
+                            'id': msg_data[0],
+                            'from_id': msg_data[1],
+                            'to_id': msg_data[2],
+                            'message': msg_data[3],
+                            'timestamp': timestamp_str,
+                            'from_name': msg_data[5],
+                            'to_name': msg_data[6]
+                        }
+                    })
                 flash('Message sent', 'success')
             except Exception as e:
+                if is_ajax:
+                    return jsonify({'success': False, 'error': str(e)})
                 flash(f'Error: {str(e)}', 'error')
+        else:
+            if is_ajax:
+                return jsonify({'success': False, 'error': 'Missing teacher_id or message'})
+        if is_ajax:
+            return jsonify({'success': False, 'error': 'Invalid request'})
         return redirect(url_for('chat_teacher'))
+    
     conn = get_db_connection()
     cursor = conn.cursor()
     if user['role'] == 'student':
@@ -342,6 +397,54 @@ def chat_teacher():
     messages = cursor.fetchall()
     conn.close()
     return render_template('chat_teacher.html', teachers=teachers, messages=messages, user=user)
+
+@app.route('/chat_teacher/api/messages')
+@login_required
+def get_chat_messages():
+    user = get_current_user()
+    other_user_id = request.args.get('other_user_id', type=int)
+    
+    if not other_user_id:
+        return jsonify({'success': False, 'error': 'Missing other_user_id'})
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT tc.*, u1.username as from_name, u2.username as to_name 
+        FROM teacher_chat tc 
+        JOIN users u1 ON tc.from_id = u1.id 
+        JOIN users u2 ON tc.to_id = u2.id 
+        WHERE (tc.from_id = ? AND tc.to_id = ?) OR (tc.from_id = ? AND tc.to_id = ?)
+        ORDER BY tc.timestamp ASC
+        LIMIT 100
+    ''', (user['id'], other_user_id, other_user_id, user['id']))
+    rows = cursor.fetchall()
+    conn.close()
+    
+    messages = []
+    for row in rows:
+        timestamp = row[4]
+        if timestamp:
+            if isinstance(timestamp, datetime):
+                timestamp_str = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            elif isinstance(timestamp, str):
+                timestamp_str = timestamp
+            else:
+                timestamp_str = str(timestamp)
+        else:
+            timestamp_str = ''
+        
+        messages.append({
+            'id': row[0],
+            'from_id': row[1],
+            'to_id': row[2],
+            'message': row[3],
+            'timestamp': timestamp_str,
+            'from_name': row[5],
+            'to_name': row[6]
+        })
+    
+    return jsonify({'success': True, 'messages': messages})
 
 @app.route('/create_quiz', methods=['GET', 'POST'])
 @teacher_required
@@ -667,8 +770,34 @@ def correct_answer(qa_log_id):
         flash('Please provide a corrected answer', 'error')
     return redirect(request.referrer or url_for('query_history'))
 
+@socketio.on('connect')
+def handle_connect():
+    print('Client connected')
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('Client disconnected')
+
+@socketio.on('join_room')
+def handle_join_room(data):
+    user_id = data.get('user_id')
+    other_user_id = data.get('other_user_id')
+    if user_id and other_user_id:
+        room_name = f'chat_{min(int(user_id), int(other_user_id))}_{max(int(user_id), int(other_user_id))}'
+        join_room(room_name)
+        print(f'User {user_id} joined room {room_name}')
+
+@socketio.on('leave_room')
+def handle_leave_room(data):
+    user_id = data.get('user_id')
+    other_user_id = data.get('other_user_id')
+    if user_id and other_user_id:
+        room_name = f'chat_{min(int(user_id), int(other_user_id))}_{max(int(user_id), int(other_user_id))}'
+        leave_room(room_name)
+        print(f'User {user_id} left room {room_name}')
+
 if __name__ == '__main__':
     init_db()
     get_rag_system()
     port = int(os.environ.get('PORT', 2121))
-    app.run(debug=True, host='0.0.0.0', port=port)
+    socketio.run(app, debug=True, host='0.0.0.0', port=port)

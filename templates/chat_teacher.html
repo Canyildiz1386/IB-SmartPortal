@@ -18,21 +18,11 @@
             <div class="card-header" id="chatHeader">Select a {% if user.role == 'student' %}teacher{% else %}student{% endif %}</div>
             <div class="card-body">
                 <div id="chatMessages" style="height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; background: #f9f9f9;">
-                    {% for msg in messages %}
-                    <div class="mb-2">
-                        {% if msg[1] == user.id %}
-                            <strong>You:</strong> {{ msg[3] }}<br>
-                        {% else %}
-                            <strong>{{ msg[5] }}:</strong> {{ msg[3] }}<br>
-                        {% endif %}
-                        <small class="text-muted">{{ msg[4] }}</small>
-                    </div>
-                    {% endfor %}
                 </div>
                 <form method="POST" id="chatForm">
                     <input type="hidden" name="teacher_id" id="teacherId">
                     <div class="input-group">
-                        <input type="text" name="message" class="form-control" placeholder="Type a message..." required>
+                        <input type="text" name="message" id="messageInput" class="form-control" placeholder="Type a message..." required>
                         <button type="submit" class="btn btn-primary">Send</button>
                     </div>
                 </form>
@@ -42,13 +32,174 @@
 </div>
 <script>
 let selectedTeacherId = null;
+let socket = null;
+let currentRoom = null;
+const currentUserId = {{ user.id }};
+const currentUsername = '{{ user.username }}';
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('chatMessages').innerHTML = '';
+    
+    socket = io();
+    
+    socket.on('connect', () => {
+        console.log('Connected to WebSocket');
+        if (selectedTeacherId) {
+            socket.emit('join_room', {
+                user_id: currentUserId,
+                other_user_id: selectedTeacherId
+            });
+            currentRoom = `chat_${Math.min(currentUserId, selectedTeacherId)}_${Math.max(currentUserId, selectedTeacherId)}`;
+        }
+    });
+    
+    socket.on('new_message', (data) => {
+        if (selectedTeacherId && (data.from_id === selectedTeacherId || data.to_id === selectedTeacherId)) {
+            addMessageToChat(data);
+        }
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('Disconnected from WebSocket');
+        currentRoom = null;
+    });
+    
+    socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+    });
+});
+
 function selectTeacher(id, name) {
+    const previousTeacherId = selectedTeacherId;
+    if (previousTeacherId && currentRoom && socket && socket.connected) {
+        socket.emit('leave_room', {
+            user_id: currentUserId,
+            other_user_id: previousTeacherId
+        });
+    }
+    
     selectedTeacherId = id;
     document.getElementById('teacherId').value = id;
     document.getElementById('chatHeader').textContent = 'Chat with ' + name;
     document.querySelectorAll('.list-group-item').forEach(item => item.classList.remove('active'));
     event.target.classList.add('active');
+    
+    loadMessages(id);
+    
+    if (socket && socket.connected) {
+        const roomName = `chat_${Math.min(currentUserId, id)}_${Math.max(currentUserId, id)}`;
+        socket.emit('join_room', {
+            user_id: currentUserId,
+            other_user_id: id
+        });
+        currentRoom = roomName;
+    }
 }
+
+function loadMessages(otherUserId) {
+    fetch(`/chat_teacher/api/messages?other_user_id=${otherUserId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const messagesDiv = document.getElementById('chatMessages');
+                messagesDiv.innerHTML = '';
+                data.messages.forEach(msg => {
+                    addMessageToChat(msg);
+                });
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading messages:', error);
+        });
+}
+
+function addMessageToChat(msg) {
+    const messagesDiv = document.getElementById('chatMessages');
+    const isOwnMessage = msg.from_id === currentUserId;
+    const senderName = isOwnMessage ? 'You' : msg.from_name;
+    
+    const messageHtml = `
+        <div class="mb-2" data-message-id="${msg.id}">
+            <strong>${senderName}:</strong> ${escapeHtml(msg.message)}<br>
+            <small class="text-muted">${msg.timestamp}</small>
+        </div>
+    `;
+    
+    messagesDiv.innerHTML += messageHtml;
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+document.getElementById('chatForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    if (!selectedTeacherId) {
+        alert('Please select a {% if user.role == "student" %}teacher{% else %}student{% endif %} first');
+        return;
+    }
+    
+    const messageInput = document.getElementById('messageInput');
+    const message = messageInput.value.trim();
+    
+    if (!message) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('teacher_id', selectedTeacherId);
+    formData.append('message', message);
+    
+    const messagesDiv = document.getElementById('chatMessages');
+    const tempMessageHtml = `
+        <div class="mb-2">
+            <strong>You:</strong> ${escapeHtml(message)}<br>
+            <small class="text-muted">Sending...</small>
+        </div>
+    `;
+    messagesDiv.innerHTML += tempMessageHtml;
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    
+    messageInput.value = '';
+    
+    fetch('/chat_teacher', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            messagesDiv.innerHTML = messagesDiv.innerHTML.replace(
+                /<div class="mb-2">\s*<strong>You:<\/strong> [^<]+<br>\s*<small class="text-muted">Sending\.\.\.<\/small>\s*<\/div>/,
+                ''
+            );
+            addMessageToChat(data.message);
+        } else {
+            messagesDiv.innerHTML = messagesDiv.innerHTML.replace(
+                /<div class="mb-2">\s*<strong>You:<\/strong> [^<]+<br>\s*<small class="text-muted">Sending\.\.\.<\/small>\s*<\/div>/,
+                ''
+            );
+            alert('Error: ' + (data.error || 'Failed to send message'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        const messagesDiv = document.getElementById('chatMessages');
+        messagesDiv.innerHTML = messagesDiv.innerHTML.replace(
+            /<div class="mb-2">\s*<strong>You:<\/strong> [^<]+<br>\s*<small class="text-muted">Sending\.\.\.<\/small>\s*<\/div>/,
+            ''
+        );
+        alert('An error occurred. Please try again.');
+    });
+});
 </script>
 {% endblock %}
 
